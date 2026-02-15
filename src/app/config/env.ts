@@ -37,8 +37,30 @@ function parseBoolean(value: string | undefined, fallback: boolean): boolean {
   return fallback;
 }
 
-function resolveManifestUrl(customUrl: string | undefined): string {
+function resolveManifestFallback(apiUrl: string | undefined): string {
   const fallback = `${window.location.origin}/api/tonconnect-manifest.json`;
+  const normalizedApi = apiUrl?.trim();
+
+  if (!normalizedApi || /your-domain\.com/i.test(normalizedApi)) {
+    return fallback;
+  }
+
+  try {
+    const resolvedApiUrl = new URL(normalizedApi, window.location.origin);
+    const normalizedPath = resolvedApiUrl.pathname.replace(/\/+$/, '');
+
+    resolvedApiUrl.pathname = `${normalizedPath}/tonconnect-manifest.json`;
+    resolvedApiUrl.search = '';
+    resolvedApiUrl.hash = '';
+
+    return resolvedApiUrl.toString();
+  } catch {
+    return fallback;
+  }
+}
+
+function resolveManifestUrl(customUrl: string | undefined, apiUrl: string | undefined): string {
+  const fallback = resolveManifestFallback(apiUrl);
 
   if (!customUrl) {
     return fallback;
@@ -110,7 +132,7 @@ const defaultCurrency = resolveDefaultCurrency(parsed.data.VITE_DEFAULT_CURRENCY
 
 export const env = {
   apiUrl: parsed.data.VITE_API_URL ?? '/api',
-  tonConnectManifestUrl: resolveManifestUrl(parsed.data.VITE_TON_CONNECT_MANIFEST_URL),
+  tonConnectManifestUrl: resolveManifestUrl(parsed.data.VITE_TON_CONNECT_MANIFEST_URL, parsed.data.VITE_API_URL),
   supportedCurrencies,
   defaultCurrency,
   forceTheme: parsed.data.VITE_FORCE_THEME,
