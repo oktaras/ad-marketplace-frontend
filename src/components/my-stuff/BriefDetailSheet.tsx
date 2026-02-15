@@ -13,21 +13,15 @@ import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { BRIEF_STATUS_CONFIG } from "@/shared/constants/marketplace-status";
-import { BriefSavedChannelsPanel } from "@/components/my-stuff/BriefSavedChannelsPanel";
-import type { BriefSavedChannelItem } from "@/shared/api/discovery";
 
 interface BriefDetailSheetProps {
   open: boolean;
   brief: Brief | null;
   applications: BriefApplicationCardItem[];
-  savedChannels?: BriefSavedChannelItem[];
-  isSavedChannelsLoading?: boolean;
-  removingSavedChannelId?: string | null;
   isApplicationsLoading?: boolean;
   onOpenChange: (open: boolean) => void;
   onAcceptApplication?: (appId: string) => Promise<void> | void;
   onDeclineApplication?: (appId: string) => Promise<void> | void;
-  onRemoveSavedChannel?: (channelId: string) => Promise<void> | void;
   onToggleBriefStatus?: (nextStatus: Brief["status"]) => Promise<void> | void;
   onDeleteBrief?: () => Promise<void> | void;
 }
@@ -36,14 +30,10 @@ export function BriefDetailSheet({
   open,
   brief,
   applications,
-  savedChannels = [],
-  isSavedChannelsLoading = false,
-  removingSavedChannelId = null,
   isApplicationsLoading = false,
   onOpenChange,
   onAcceptApplication,
   onDeclineApplication,
-  onRemoveSavedChannel,
   onToggleBriefStatus,
   onDeleteBrief,
 }: BriefDetailSheetProps) {
@@ -180,13 +170,6 @@ export function BriefDetailSheet({
             </div>
           )}
         </div>
-
-        <BriefSavedChannelsPanel
-          items={savedChannels}
-          isLoading={isSavedChannelsLoading}
-          removingChannelId={removingSavedChannelId}
-          onRemove={onRemoveSavedChannel}
-        />
 
         {/* Close brief action */}
         <div className="space-y-2">

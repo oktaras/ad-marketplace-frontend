@@ -19,6 +19,7 @@ export type TelegramPopupConfirmOptions = {
   confirmText?: string;
   cancelText?: string;
   isDestructive?: boolean;
+  cancelIsDestructive?: boolean;
 };
 
 export function useTelegramPopupConfirm(): (options: TelegramPopupConfirmOptions) => Promise<boolean> {
@@ -53,7 +54,7 @@ export function useTelegramPopupConfirm(): (options: TelegramPopupConfirmOptions
             },
             {
               id: "cancel",
-              type: "default",
+              type: options.cancelIsDestructive ? "destructive" : "default",
               text: cancelText,
             },
           ],
@@ -68,4 +69,3 @@ export function useTelegramPopupConfirm(): (options: TelegramPopupConfirmOptions
     return window.confirm(`${title}\n\n${message}`);
   }, []);
 }
-

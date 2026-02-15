@@ -19,7 +19,7 @@ import { toast } from "@/hooks/use-toast";
 import { Brief } from "@/types/marketplace";
 import type { BriefApplicationCardItem } from "@/components/discovery/ApplicationCard";
 import type { CreateBriefFormData } from "@/components/my-stuff/CreateBriefSheet";
-import { getBriefSavedChannels, getDiscoveryCategories, removeChannelFromBrief } from "@/shared/api/discovery";
+import { getDiscoveryCategories } from "@/shared/api/discovery";
 import {
   createMyBrief,
   deleteMyBrief,
@@ -42,6 +42,8 @@ import {
 } from "@/pages/discovery/utils";
 import { inAppEmptyStates, inAppToasts } from "@/shared/notifications/in-app";
 import { normalizeCurrency } from "@/types/currency";
+import { useTelegramPopupConfirm } from "@/shared/lib/telegram-popup-confirm";
+import { formatCurrency } from "@/lib/format";
 
 type BriefSort = "budget_desc" | "budget_asc" | "deadline_asc" | "subs_desc" | "created_desc";
 type MutableBriefStatus = NonNullable<UpdateMyBriefPayload["status"]>;
@@ -140,6 +142,7 @@ function mapMyBriefApplicationToCard(
 export default function MyBriefs() {
   const { role } = useRole();
   const queryClient = useQueryClient();
+  const confirmWithPopup = useTelegramPopupConfirm();
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [filters, setFilters] = useState<FilterSortState<BriefSort>>({
     search: "",
@@ -155,7 +158,6 @@ export default function MyBriefs() {
     channelName: string;
     options: Array<{ id: string; name: string; price: number; currency: string }>;
   } | null>(null);
-  const [removingSavedChannelId, setRemovingSavedChannelId] = useState<string | null>(null);
   const selectedBriefId = selectedBrief?.id ?? "";
 
   const debouncedSearch = useDebouncedValue(filters.search, SEARCH_DEBOUNCE_MS);
@@ -270,12 +272,6 @@ export default function MyBriefs() {
     queryFn: () => getMyBriefApplicationsForAdvertiser(selectedBriefId),
   });
 
-  const savedChannelsQuery = useQuery({
-    queryKey: ["brief-saved-channels", selectedBriefId],
-    enabled: Boolean(selectedBriefId),
-    queryFn: () => getBriefSavedChannels(selectedBriefId),
-  });
-
   const rawApplications = applicationsQuery.data ?? [];
 
   const applicationsById = useMemo(
@@ -347,33 +343,6 @@ export default function MyBriefs() {
     },
     onError: (error) => {
       toast(inAppToasts.myBriefs.briefDeleteFailed(getApiErrorMessage(error)));
-    },
-  });
-
-  const removeSavedChannelMutation = useMutation({
-    mutationFn: async (channelId: string) => {
-      if (!selectedBriefId) {
-        throw new Error("Brief is unavailable.");
-      }
-
-      await removeChannelFromBrief(selectedBriefId, channelId);
-      return channelId;
-    },
-    onMutate: (channelId) => {
-      setRemovingSavedChannelId(channelId);
-    },
-    onSuccess: async () => {
-      toast(inAppToasts.myBriefs.shortlistRemoved);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["brief-saved-channels", selectedBriefId] }),
-        queryClient.invalidateQueries({ queryKey: ["my-briefs"] }),
-      ]);
-    },
-    onError: (error) => {
-      toast(inAppToasts.myBriefs.shortlistRemoveFailed(getApiErrorMessage(error)));
-    },
-    onSettled: () => {
-      setRemovingSavedChannelId(null);
     },
   });
 
@@ -457,6 +426,29 @@ export default function MyBriefs() {
 
     if (options.length === 0) {
       toast(inAppToasts.myBriefs.noAdFormatOptions);
+      return;
+    }
+
+    if (options.length === 1) {
+      const [singleOption] = options;
+      const channelName = application.channel?.title || "Untitled channel";
+      const confirmed = await confirmWithPopup({
+        title: "Accept Application",
+        message: `Accept ${channelName} at ${formatCurrency(singleOption.price, singleOption.currency)}? This will create a deal.`,
+        confirmText: "Accept",
+        cancelText: "Cancel",
+        cancelIsDestructive: true,
+      });
+
+      if (!confirmed) {
+        return;
+      }
+
+      await reviewApplicationMutation.mutateAsync({
+        applicationId,
+        action: "accept",
+        adFormatId: singleOption.id,
+      });
       return;
     }
 
@@ -616,16 +608,10 @@ export default function MyBriefs() {
         open={!!selectedBrief}
         brief={selectedBrief}
         applications={applications}
-        savedChannels={savedChannelsQuery.data ?? []}
-        isSavedChannelsLoading={savedChannelsQuery.isLoading}
-        removingSavedChannelId={removingSavedChannelId}
         isApplicationsLoading={applicationsQuery.isLoading}
         onOpenChange={(open) => !open && setSelectedBrief(null)}
         onAcceptApplication={handleAcceptApplication}
         onDeclineApplication={handleDeclineApplication}
-        onRemoveSavedChannel={async (channelId) => {
-          await removeSavedChannelMutation.mutateAsync(channelId);
-        }}
         onToggleBriefStatus={handleToggleBriefStatus}
         onDeleteBrief={handleDeleteBrief}
       />

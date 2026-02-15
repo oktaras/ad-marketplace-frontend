@@ -39,18 +39,7 @@ export function ApplicationCard({
   const confirmWithPopup = useTelegramPopupConfirm();
   const badge = APPLICATION_STATUS_BADGE[application.status];
 
-  const handleAcceptRequest = async () => {
-    const confirmed = await confirmWithPopup({
-      title: "Accept Application",
-      message: `Accept ${application.channelName} at ${formatCurrency(application.proposedPrice, application.currency)}? This will create a deal.`,
-      confirmText: "Accept",
-      cancelText: "Cancel",
-    });
-
-    if (!confirmed) {
-      return;
-    }
-
+  const handleAcceptRequest = () => {
     onAccept(application.id);
   };
 
