@@ -103,15 +103,6 @@ function buildAwaitingPaymentSummary(rawDeals: Array<Record<string, unknown>> | 
   };
 }
 
-function isUserCancelledWalletAction(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const message = error.message.toLowerCase();
-  return message.includes("cancel") || message.includes("reject") || message.includes("abort");
-}
-
 export function WalletCard() {
   const [showDetail, setShowDetail] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
@@ -299,10 +290,8 @@ export function WalletCard() {
       }
 
       linkWalletMutation.mutate(nextAddress);
-    } catch (error) {
-      if (!isUserCancelledWalletAction(error)) {
-        toast(inAppToasts.wallet.connectionFailed);
-      }
+    } catch {
+      // Keep silent for wallet modal close/fail to avoid noisy UX.
     }
   };
 
