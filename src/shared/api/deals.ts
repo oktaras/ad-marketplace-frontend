@@ -1,0 +1,992 @@
+import { OpenAPI } from "@/shared/api/generated/core/OpenAPI";
+import { request } from "@/shared/api/generated/core/request";
+import type {
+  BackendDealStatus,
+  CreativeSubmission,
+  Deal,
+  DealChat,
+  DealChatStatus,
+  DealAvailableActions,
+  DealDeadlines,
+  DealEscrowStatus,
+  DealMilestone,
+  DealStatus,
+  DealStatusHistoryEntry,
+  PostingPlan,
+} from "@/types/deal";
+import type { UserRole } from "@/contexts/RoleContext";
+import { DEFAULT_CURRENCY } from "@/types/currency";
+
+type DealsPagination = {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+};
+
+type DealsPageResult = {
+  items: Deal[];
+  pagination: DealsPagination;
+  statusCounts: Record<UiDealFilter, number>;
+};
+
+type RawDealStatusCounts = Record<string, number>;
+
+type RawPostingPlan = {
+  agreedMethod?: "scheduled" | "manual";
+  agreedDate?: string;
+  windowHours?: number;
+  guaranteeTerm?: number;
+  proposals?: Array<{
+    id: string;
+    proposedBy: "advertiser" | "publisher";
+    method: "scheduled" | "manual";
+    date: string;
+    windowHours?: number;
+    guaranteeTerm: number;
+    status: "pending" | "accepted" | "rejected" | "countered";
+    createdAt: string;
+  }>;
+};
+
+type RawDeal = {
+  id: string;
+  channelId: string;
+  briefId: string | null;
+  agreedPrice: string;
+  currency: string;
+  status: BackendDealStatus;
+  workflowStatus?: BackendDealStatus | null;
+  escrowStatus: DealEscrowStatus;
+  statusHistory: unknown;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string | null;
+  completedAt: string | null;
+  scheduledTime: string | null;
+  isAdvertiser: boolean;
+  isPublisher: boolean;
+  availableActions?: Partial<DealAvailableActions> | null;
+  deadlines?: Partial<DealDeadlines> | null;
+  postingPlan?: RawPostingPlan | null;
+  dealChat?: {
+    status?: string;
+    openedByMe?: boolean;
+    openedByCounterparty?: boolean;
+    isOpenable?: boolean;
+  } | null;
+  openDealChatUrl?: string | null;
+  channel: {
+    id: string;
+    username: string | null;
+    title: string;
+    categories: Array<{
+      slug: string;
+      name: string;
+      icon: string | null;
+    }>;
+  };
+  advertiser: {
+    id: string;
+    username: string | null;
+    firstName: string | null;
+    photoUrl: string | null;
+  };
+  adFormat: {
+    id: string;
+    type: string;
+    name: string;
+    priceAmount: string;
+    priceCurrency: string;
+  };
+  brief: {
+    id: string;
+    title: string;
+  } | null;
+  creative: {
+    id: string;
+    text: string | null;
+    mediaUrls: string[];
+    mediaTypes?: string[];
+    mediaMeta?: Array<{
+      url?: string;
+      type?: string;
+      name?: string;
+      mimeType?: string;
+      sizeBytes?: number;
+      provider?: string;
+      storageKey?: string;
+    }>;
+    buttons?: unknown;
+    status: string;
+    feedback: string | null;
+    version: number;
+    submittedAt: string | null;
+    approvedAt: string | null;
+    updatedAt: string;
+  } | null;
+};
+
+type RawDealsResponse = {
+  deals?: RawDeal[];
+  pagination?: {
+    page?: number;
+    limit?: number;
+    total?: number;
+    pages?: number;
+  };
+  statusCounts?: RawDealStatusCounts;
+};
+
+type RawDealResponse = {
+  deal?: RawDeal;
+};
+
+type RawOpenDealChatResponse = {
+  ok?: boolean;
+  dealId?: string;
+  dealChat?: RawDeal["dealChat"];
+  openDealChatUrl?: string | null;
+};
+
+type FundDealResponse = {
+  escrow?: {
+    address?: string;
+    amount?: string;
+    reserveAmount?: string;
+    totalAmount?: string;
+    currency?: string;
+    status?: string;
+  };
+  transaction?: {
+    to?: string;
+    amountNano?: string;
+    payload?: string;
+    stateInit?: string;
+    deepLink?: string;
+  };
+};
+
+type VerifyPaymentResponse = {
+  funded?: boolean;
+  invalidFunding?: boolean;
+  rotation?: Record<string, unknown>;
+  nextFundingTransaction?: {
+    to?: string;
+    amountNano?: string;
+    payload?: string;
+    stateInit?: string;
+    deepLink?: string;
+  } | null;
+  contractInfo?: {
+    amount?: string;
+    platformFee?: string;
+    publisherAmount?: string;
+    status?: string;
+    balance?: string;
+  } | null;
+};
+
+type RawPostingPlanResponse = {
+  postingPlan?: RawPostingPlan;
+  availableActions?: Partial<DealAvailableActions>;
+};
+
+type RawPostingPlanMutationResponse = {
+  postingPlan?: RawPostingPlan;
+  status?: BackendDealStatus;
+};
+
+export type UiDealFilter =
+  | "negotiation"
+  | "awaiting_creative"
+  | "creative_review"
+  | "revision_requested"
+  | "approved"
+  | "published"
+  | "completed"
+  | "cancelled"
+  | "all";
+
+type UiDealFilterStatus = Exclude<UiDealFilter, "all">;
+
+const UI_DEAL_FILTER_TO_BACKEND_STATUSES: Record<UiDealFilterStatus, BackendDealStatus[]> = {
+  negotiation: ["CREATED", "NEGOTIATING", "TERMS_AGREED", "AWAITING_PAYMENT"],
+  awaiting_creative: ["FUNDED", "AWAITING_CREATIVE"],
+  creative_review: ["CREATIVE_SUBMITTED"],
+  revision_requested: ["CREATIVE_REVISION"],
+  approved: ["CREATIVE_APPROVED", "AWAITING_POSTING_PLAN", "POSTING_PLAN_AGREED", "SCHEDULED", "AWAITING_MANUAL_POST", "POSTING"],
+  published: ["POSTED", "VERIFIED"],
+  completed: ["COMPLETED"],
+  cancelled: ["CANCELLED", "EXPIRED", "REFUNDED", "DISPUTED", "RESOLVED"],
+};
+
+const BACKEND_STATUS_SET = new Set<BackendDealStatus>([
+  "CREATED",
+  "NEGOTIATING",
+  "TERMS_AGREED",
+  "AWAITING_PAYMENT",
+  "FUNDED",
+  "AWAITING_CREATIVE",
+  "CREATIVE_SUBMITTED",
+  "CREATIVE_REVISION",
+  "CREATIVE_APPROVED",
+  "AWAITING_POSTING_PLAN",
+  "POSTING_PLAN_AGREED",
+  "SCHEDULED",
+  "AWAITING_MANUAL_POST",
+  "POSTING",
+  "POSTED",
+  "VERIFIED",
+  "COMPLETED",
+  "CANCELLED",
+  "EXPIRED",
+  "REFUNDED",
+  "DISPUTED",
+  "RESOLVED",
+]);
+
+const BACKEND_TO_UI_STATUS: Record<BackendDealStatus, DealStatus> = {
+  CREATED: "created",
+  NEGOTIATING: "negotiating",
+  TERMS_AGREED: "terms_agreed",
+  AWAITING_PAYMENT: "awaiting_payment",
+  FUNDED: "funded",
+  AWAITING_CREATIVE: "awaiting_creative",
+  CREATIVE_SUBMITTED: "creative_submitted",
+  CREATIVE_REVISION: "creative_revision",
+  CREATIVE_APPROVED: "creative_approved",
+  AWAITING_POSTING_PLAN: "awaiting_posting_plan",
+  POSTING_PLAN_AGREED: "posting_plan_agreed",
+  SCHEDULED: "scheduled",
+  AWAITING_MANUAL_POST: "awaiting_manual_post",
+  POSTING: "posting",
+  POSTED: "posted",
+  VERIFIED: "verified",
+  COMPLETED: "completed",
+  CANCELLED: "cancelled",
+  EXPIRED: "expired",
+  REFUNDED: "refunded",
+  DISPUTED: "disputed",
+  RESOLVED: "resolved",
+};
+
+type MilestoneDefinition = {
+  id: string;
+  label: string;
+  description: string;
+  statuses: BackendDealStatus[];
+};
+
+const MILESTONE_DEFINITIONS: MilestoneDefinition[] = [
+  {
+    id: "created",
+    label: "Deal Created",
+    description: "Deal initiated between advertiser and publisher.",
+    statuses: ["CREATED"],
+  },
+  {
+    id: "terms",
+    label: "Terms",
+    description: "Parties negotiate and align terms.",
+    statuses: ["NEGOTIATING", "TERMS_AGREED"],
+  },
+  {
+    id: "payment",
+    label: "Payment",
+    description: "Advertiser funds escrow.",
+    statuses: ["AWAITING_PAYMENT", "FUNDED"],
+  },
+  {
+    id: "creative",
+    label: "Creative",
+    description: "Creative submitted and approved.",
+    statuses: ["AWAITING_CREATIVE", "CREATIVE_SUBMITTED", "CREATIVE_REVISION", "CREATIVE_APPROVED"],
+  },
+  {
+    id: "posting-plan",
+    label: "Posting Plan",
+    description: "Posting schedule is proposed and agreed.",
+    statuses: ["AWAITING_POSTING_PLAN", "POSTING_PLAN_AGREED", "SCHEDULED", "AWAITING_MANUAL_POST"],
+  },
+  {
+    id: "publication",
+    label: "Publication",
+    description: "Post is being delivered and published.",
+    statuses: ["POSTING", "POSTED"],
+  },
+  {
+    id: "completion",
+    label: "Completion",
+    description: "Delivery verified and deal completed.",
+    statuses: ["VERIFIED", "COMPLETED"],
+  },
+];
+
+const TERMINAL_BACKEND_STATUSES = new Set<BackendDealStatus>([
+  "COMPLETED",
+  "CANCELLED",
+  "EXPIRED",
+  "REFUNDED",
+  "RESOLVED",
+]);
+
+const DEAL_CHAT_STATUS_SET = new Set<DealChatStatus>([
+  "PENDING_OPEN",
+  "ACTIVE",
+  "CLOSED",
+]);
+
+const EMPTY_DEAL_ACTIONS: DealAvailableActions = {
+  acceptTerms: false,
+  fundDeal: false,
+  verifyPayment: false,
+  submitCreative: false,
+  approveCreative: false,
+  requestCreativeRevision: false,
+  cancelDeal: false,
+  proposePostingPlan: false,
+  respondPostingPlan: false,
+  openDispute: false,
+};
+
+function normalizePagination(
+  raw: {
+    page?: number;
+    limit?: number;
+    total?: number;
+    pages?: number;
+  } | undefined,
+  fallbackPage: number,
+  fallbackLimit: number,
+): DealsPagination {
+  const page = typeof raw?.page === "number" ? raw.page : fallbackPage;
+  const limit = typeof raw?.limit === "number" ? raw.limit : fallbackLimit;
+  const total = typeof raw?.total === "number" ? raw.total : 0;
+  const pages = typeof raw?.pages === "number" ? raw.pages : Math.max(total > 0 ? Math.ceil(total / limit) : 1, 1);
+
+  return { page, limit, total, pages };
+}
+
+function parseAmount(value: string | null | undefined): number {
+  if (!value) {
+    return 0;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatDateTimeLabel(iso: string | null | undefined): string | null {
+  if (!iso) {
+    return null;
+  }
+
+  const timestamp = Date.parse(iso);
+  if (!Number.isFinite(timestamp)) {
+    return null;
+  }
+
+  return new Date(timestamp).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function normalizeChannelUsername(username: string | null | undefined): string {
+  if (!username) {
+    return "@unknown";
+  }
+
+  return username.startsWith("@") ? username : `@${username}`;
+}
+
+function toUiDealStatus(status: BackendDealStatus): DealStatus {
+  return BACKEND_TO_UI_STATUS[status];
+}
+
+function parseStatusHistory(raw: unknown): DealStatusHistoryEntry[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  const parsed = raw
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const item = entry as {
+        status?: unknown;
+        timestamp?: unknown;
+        actor?: unknown;
+      };
+
+      if (typeof item.status !== "string" || typeof item.timestamp !== "string") {
+        return null;
+      }
+
+      const normalizedStatus = item.status.toUpperCase();
+      if (!BACKEND_STATUS_SET.has(normalizedStatus as BackendDealStatus)) {
+        return null;
+      }
+
+      const actor = typeof item.actor === "string" ? item.actor : undefined;
+      return {
+        status: normalizedStatus as BackendDealStatus,
+        timestamp: item.timestamp,
+        ...(actor ? { actor } : {}),
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
+  return parsed.sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+}
+
+function getStageIndexForStatus(status: BackendDealStatus): number {
+  const milestoneIndex = MILESTONE_DEFINITIONS.findIndex((milestone) => milestone.statuses.includes(status));
+  return milestoneIndex >= 0 ? milestoneIndex : 0;
+}
+
+function getMilestoneTimestamp(
+  history: DealStatusHistoryEntry[],
+  statuses: BackendDealStatus[],
+): string | null {
+  const match = history.find((entry) => statuses.includes(entry.status));
+  return formatDateTimeLabel(match?.timestamp);
+}
+
+function buildMilestones(
+  backendStatus: BackendDealStatus,
+  history: DealStatusHistoryEntry[],
+): DealMilestone[] {
+  const nonTerminalHistory = [...history].reverse().find((entry) => !TERMINAL_BACKEND_STATUSES.has(entry.status));
+  const fallbackIndex = nonTerminalHistory ? getStageIndexForStatus(nonTerminalHistory.status) : 0;
+  const currentIndex =
+    backendStatus === "COMPLETED"
+      ? MILESTONE_DEFINITIONS.length - 1
+      : TERMINAL_BACKEND_STATUSES.has(backendStatus)
+        ? fallbackIndex
+        : getStageIndexForStatus(backendStatus);
+  const hasActiveStage = !TERMINAL_BACKEND_STATUSES.has(backendStatus) && backendStatus !== "COMPLETED";
+
+  return MILESTONE_DEFINITIONS.map((milestone, index) => {
+    let status: DealMilestone["status"] = "upcoming";
+
+    if (backendStatus === "COMPLETED") {
+      status = "done";
+    } else if (index < currentIndex) {
+      status = "done";
+    } else if (index === currentIndex && hasActiveStage) {
+      status = "active";
+    }
+
+    return {
+      id: milestone.id,
+      label: milestone.label,
+      description: milestone.description,
+      timestamp: status === "done" ? getMilestoneTimestamp(history, milestone.statuses) : null,
+      status,
+    };
+  });
+}
+
+function normalizeCreativeMediaType(
+  value: string | undefined,
+  url: string,
+  index: number,
+  explicitName?: string,
+): { type: "image" | "video"; name: string } {
+  const normalized = (value || "").toUpperCase();
+  const basename = url.split("?")[0]?.split("/").pop()?.trim();
+  const fallbackName = explicitName?.trim()
+    || (basename && basename.length > 0 ? basename : `media-${index + 1}`);
+
+  if (normalized === "VIDEO") {
+    return { type: "video", name: fallbackName };
+  }
+
+  return { type: "image", name: fallbackName };
+}
+
+function normalizeCreativeMediaUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    const isLocalHost = host === "localhost" || host === "127.0.0.1" || host === "::1";
+    if (!isLocalHost || typeof window === "undefined") {
+      return url;
+    }
+
+    return `${window.location.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return url;
+  }
+}
+
+function parseCreativeButtons(rawButtons: unknown): Array<{ label: string; url: string }> {
+  if (!Array.isArray(rawButtons)) {
+    return [];
+  }
+
+  return rawButtons
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const candidate = entry as { text?: unknown; label?: unknown; url?: unknown };
+      const url = typeof candidate.url === "string" ? candidate.url.trim() : "";
+      const labelRaw = typeof candidate.label === "string" ? candidate.label : typeof candidate.text === "string" ? candidate.text : "";
+      const label = labelRaw.trim();
+      if (!url || !label) {
+        return null;
+      }
+
+      return { label, url };
+    })
+    .filter((entry): entry is { label: string; url: string } => entry !== null);
+}
+
+function mapCreativeSubmission(raw: RawDeal): CreativeSubmission[] {
+  if (!raw.creative) {
+    return [];
+  }
+
+  const creativeStatus = raw.creative.status.toUpperCase();
+  const status: CreativeSubmission["status"] =
+    creativeStatus === "APPROVED" || creativeStatus === "POSTED"
+      ? "approved"
+      : creativeStatus === "REVISION_REQUESTED"
+        ? "revision_requested"
+        : "pending";
+
+  const mediaUrls = Array.isArray(raw.creative.mediaUrls) ? raw.creative.mediaUrls : [];
+  const mediaTypes = Array.isArray(raw.creative.mediaTypes) ? raw.creative.mediaTypes : [];
+  const mediaMeta = Array.isArray(raw.creative.mediaMeta) ? raw.creative.mediaMeta : [];
+  const media = mediaMeta.length > 0
+    ? mediaMeta
+      .map((entry, index) => {
+        const rawUrl = typeof entry?.url === "string" ? entry.url.trim() : "";
+        const url = normalizeCreativeMediaUrl(rawUrl);
+        if (!url) {
+          return null;
+        }
+
+        const normalized = normalizeCreativeMediaType(
+          typeof entry?.type === "string" ? entry.type : mediaTypes[index],
+          url,
+          index,
+          typeof entry?.name === "string" ? entry.name : undefined,
+        );
+
+        return {
+          id: `${raw.creative!.id}-${index}`,
+          type: normalized.type,
+          url,
+          name: normalized.name,
+          mimeType: typeof entry?.mimeType === "string" ? entry.mimeType : undefined,
+          sizeBytes: typeof entry?.sizeBytes === "number" ? entry.sizeBytes : undefined,
+          provider: typeof entry?.provider === "string" ? entry.provider : undefined,
+          storageKey: typeof entry?.storageKey === "string" ? entry.storageKey : undefined,
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+    : mediaUrls.map((rawUrl, index) => {
+      const url = normalizeCreativeMediaUrl(rawUrl);
+      const normalized = normalizeCreativeMediaType(mediaTypes[index], url, index);
+      return {
+        id: `${raw.creative!.id}-${index}`,
+        type: normalized.type,
+        url,
+        name: normalized.name,
+      };
+    });
+
+  return [
+    {
+      id: raw.creative.id,
+      submittedAt: formatDateTimeLabel(raw.creative.submittedAt || raw.creative.updatedAt) || "Unknown time",
+      text: raw.creative.text || "",
+      mediaUrl: media[0]?.url || normalizeCreativeMediaUrl(mediaUrls[0] || ""),
+      media,
+      inlineButtons: parseCreativeButtons(raw.creative.buttons),
+      feedback: raw.creative.feedback || undefined,
+      status,
+    },
+  ];
+}
+
+function normalizeAdFormat(type: string): "post" | "story" | "repost" {
+  const normalized = type.toLowerCase();
+  if (normalized === "story") {
+    return "story";
+  }
+  if (normalized === "repost") {
+    return "repost";
+  }
+  return "post";
+}
+
+function mapDealActions(raw: Partial<DealAvailableActions> | null | undefined): DealAvailableActions {
+  if (!raw || typeof raw !== "object") {
+    return EMPTY_DEAL_ACTIONS;
+  }
+
+  return {
+    acceptTerms: Boolean(raw.acceptTerms),
+    fundDeal: Boolean(raw.fundDeal),
+    verifyPayment: Boolean(raw.verifyPayment),
+    submitCreative: Boolean(raw.submitCreative),
+    approveCreative: Boolean(raw.approveCreative),
+    requestCreativeRevision: Boolean(raw.requestCreativeRevision),
+    cancelDeal: Boolean(raw.cancelDeal),
+    proposePostingPlan: Boolean(raw.proposePostingPlan),
+    respondPostingPlan: Boolean(raw.respondPostingPlan),
+    openDispute: Boolean(raw.openDispute),
+  };
+}
+
+function mapDealDeadlines(raw: Partial<DealDeadlines> | null | undefined): DealDeadlines | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+
+  return {
+    currentStageDeadlineAt: typeof raw.currentStageDeadlineAt === "string" ? raw.currentStageDeadlineAt : null,
+    currentStageTimeoutHours: typeof raw.currentStageTimeoutHours === "number" ? raw.currentStageTimeoutHours : null,
+    stageStartedAt: typeof raw.stageStartedAt === "string" ? raw.stageStartedAt : null,
+  };
+}
+
+function mapPostingPlan(raw: RawPostingPlan | null | undefined): PostingPlan | undefined {
+  if (!raw || typeof raw !== "object") {
+    return undefined;
+  }
+
+  return {
+    agreedMethod: raw.agreedMethod,
+    agreedDate: raw.agreedDate,
+    windowHours: raw.windowHours,
+    guaranteeTerm: raw.guaranteeTerm,
+    proposals: Array.isArray(raw.proposals) ? raw.proposals : [],
+  };
+}
+
+function mapDealChat(
+  raw: RawDeal["dealChat"] | undefined,
+  backendStatus: BackendDealStatus,
+): DealChat {
+  const fallbackStatus: DealChatStatus = TERMINAL_BACKEND_STATUSES.has(backendStatus)
+    ? "CLOSED"
+    : "PENDING_OPEN";
+  const rawStatus = typeof raw?.status === "string" ? raw.status.toUpperCase() : "";
+  const status = DEAL_CHAT_STATUS_SET.has(rawStatus as DealChatStatus)
+    ? (rawStatus as DealChatStatus)
+    : fallbackStatus;
+
+  return {
+    status,
+    openedByMe: Boolean(raw?.openedByMe),
+    openedByCounterparty: Boolean(raw?.openedByCounterparty),
+    isOpenable: typeof raw?.isOpenable === "boolean"
+      ? raw.isOpenable
+      : status !== "CLOSED",
+  };
+}
+
+function mapDeal(raw: RawDeal): Deal {
+  const history = parseStatusHistory(raw.statusHistory);
+  const backendStatus = (raw.workflowStatus || raw.status) as BackendDealStatus;
+  const primaryCategory = raw.channel.categories[0];
+  const advertiserName = raw.advertiser.firstName || raw.advertiser.username || "Advertiser";
+
+  return {
+    id: raw.id,
+    briefId: raw.brief?.id || raw.briefId || undefined,
+    briefTitle: raw.brief?.title || undefined,
+    channelId: raw.channelId,
+    channelName: raw.channel.title || "Untitled channel",
+    channelAvatar: primaryCategory?.icon || "📡",
+    channelUsername: normalizeChannelUsername(raw.channel.username),
+    advertiserName,
+    advertiserAvatar: "👤",
+    agreedPrice: parseAmount(raw.agreedPrice),
+    currency: raw.currency || DEFAULT_CURRENCY,
+    format: normalizeAdFormat(raw.adFormat.type),
+    status: toUiDealStatus(backendStatus),
+    workflowStatus: backendStatus,
+    backendStatus,
+    escrowStatus: raw.escrowStatus,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+    expiresAt: raw.expiresAt,
+    completedAt: raw.completedAt,
+    publishDate: raw.scheduledTime || undefined,
+    isAdvertiser: raw.isAdvertiser,
+    isPublisher: raw.isPublisher,
+    statusHistory: history,
+    milestones: buildMilestones(backendStatus, history),
+    creativeSubmissions: mapCreativeSubmission(raw),
+    postingPlan: mapPostingPlan(raw.postingPlan),
+    availableActions: mapDealActions(raw.availableActions),
+    deadlines: mapDealDeadlines(raw.deadlines),
+    dealChat: mapDealChat(raw.dealChat, backendStatus),
+    openDealChatUrl: typeof raw.openDealChatUrl === "string" ? raw.openDealChatUrl : null,
+  };
+}
+
+function mapUiStatusCounts(raw: RawDealStatusCounts | undefined): Record<UiDealFilter, number> {
+  const safeRaw = raw ?? {};
+  const counts = (Object.keys(UI_DEAL_FILTER_TO_BACKEND_STATUSES) as UiDealFilterStatus[]).reduce((acc, key) => {
+    const totalForStatus = UI_DEAL_FILTER_TO_BACKEND_STATUSES[key]
+      .reduce((sum, backendStatus) => sum + (safeRaw[backendStatus] ?? 0), 0);
+    acc[key] = totalForStatus;
+    return acc;
+  }, {} as Record<UiDealFilterStatus, number>);
+
+  const all = Object.values(counts).reduce((sum, value) => sum + value, 0);
+  return { ...counts, all };
+}
+
+function normalizeRole(role: UserRole | null | undefined): "advertiser" | "publisher" | undefined {
+  if (role === "advertiser" || role === "publisher") {
+    return role;
+  }
+
+  return undefined;
+}
+
+function normalizeStatusFilter(statusFilter: UiDealFilter): string | undefined {
+  if (statusFilter === "all") {
+    return undefined;
+  }
+
+  const mapped = UI_DEAL_FILTER_TO_BACKEND_STATUSES[statusFilter];
+  if (!mapped || mapped.length === 0) {
+    return undefined;
+  }
+
+  return mapped.join(",");
+}
+
+export async function getDeals(params: {
+  role: UserRole | null;
+  statusFilter: UiDealFilter;
+  page?: number;
+  limit?: number;
+}): Promise<DealsPageResult> {
+  const normalizedRole = normalizeRole(params.role);
+  const requestedPage = params.page ?? 1;
+  const requestedLimit = params.limit ?? 10;
+  const normalizedStatus = normalizeStatusFilter(params.statusFilter);
+
+  const response = await request(OpenAPI, {
+    method: "GET",
+    url: "/api/deals",
+    query: {
+      page: requestedPage,
+      limit: requestedLimit,
+      ...(normalizedRole ? { role: normalizedRole } : {}),
+      ...(normalizedStatus ? { status: normalizedStatus } : {}),
+    },
+  }) as RawDealsResponse;
+
+  return {
+    items: (response.deals ?? []).map(mapDeal),
+    pagination: normalizePagination(response.pagination, requestedPage, requestedLimit),
+    statusCounts: mapUiStatusCounts(response.statusCounts),
+  };
+}
+
+export async function getDealById(dealId: string): Promise<Deal | null> {
+  const response = await request(OpenAPI, {
+    method: "GET",
+    url: "/api/deals/{id}",
+    path: { id: dealId },
+  }) as RawDealResponse;
+
+  return response.deal ? mapDeal(response.deal) : null;
+}
+
+export async function openDealChat(dealId: string): Promise<{
+  dealChat?: DealChat;
+  openDealChatUrl?: string | null;
+}> {
+  const response = await request(OpenAPI, {
+    method: "POST",
+    url: "/api/deals/{id}/open-chat",
+    path: { id: dealId },
+  }) as RawOpenDealChatResponse;
+
+  return {
+    dealChat: response.dealChat
+      ? mapDealChat(response.dealChat, "CREATED")
+      : undefined,
+    openDealChatUrl: typeof response.openDealChatUrl === "string"
+      ? response.openDealChatUrl
+      : null,
+  };
+}
+
+export type CreateDealPayload = {
+  origin: "LISTING" | "BRIEF" | "DIRECT";
+  channelId: string;
+  adFormatId: string;
+  agreedPrice: string;
+  currency: string;
+  listingId?: string;
+  briefId?: string;
+  applicationId?: string;
+  scheduledTime?: string;
+  durationHours?: number;
+};
+
+export async function createDeal(payload: CreateDealPayload): Promise<Deal | null> {
+  const response = await request(OpenAPI, {
+    method: "POST",
+    url: "/api/deals",
+    body: payload,
+    mediaType: "application/json",
+  }) as RawDealResponse;
+
+  return response.deal ? mapDeal(response.deal) : null;
+}
+
+export async function acceptDealTerms(dealId: string): Promise<void> {
+  await request(OpenAPI, {
+    method: "POST",
+    url: "/api/deals/{id}/accept",
+    path: { id: dealId },
+  });
+}
+
+export type SubmitDealCreativePayload = {
+  text: string;
+  mediaUrls?: string[];
+  mediaTypes?: Array<"TEXT" | "IMAGE" | "VIDEO" | "GIF" | "DOCUMENT" | "AUDIO" | "POLL">;
+  media?: Array<{
+    url: string;
+    type: "TEXT" | "IMAGE" | "VIDEO" | "GIF" | "DOCUMENT" | "AUDIO" | "POLL";
+    name?: string;
+    mimeType?: string;
+    sizeBytes?: number;
+    provider?: string;
+    storageKey?: string;
+  }>;
+  buttons?: Array<{ text: string; url: string }>;
+};
+
+export async function submitDealCreative(dealId: string, payload: SubmitDealCreativePayload): Promise<void> {
+  await request(OpenAPI, {
+    method: "POST",
+    url: "/api/deals/{id}/creative",
+    path: { id: dealId },
+    body: payload,
+    mediaType: "application/json",
+  });
+}
+
+export async function approveDealCreative(dealId: string): Promise<void> {
+  await request(OpenAPI, {
+    method: "POST",
+    url: "/api/deals/{id}/creative/approve",
+    path: { id: dealId },
+  });
+}
+
+export async function requestDealCreativeRevision(dealId: string, feedback: string): Promise<void> {
+  await request(OpenAPI, {
+    method: "POST",
+    url: "/api/deals/{id}/creative/revision",
+    path: { id: dealId },
+    body: { feedback },
+    mediaType: "application/json",
+  });
+}
+
+export async function cancelDeal(dealId: string): Promise<void> {
+  await request(OpenAPI, {
+    method: "POST",
+    url: "/api/deals/{id}/cancel",
+    path: { id: dealId },
+    body: {},
+    mediaType: "application/json",
+  });
+}
+
+export async function fundDeal(dealId: string): Promise<FundDealResponse> {
+  return request(OpenAPI, {
+    method: "POST",
+    url: "/api/deals/{id}/fund",
+    path: { id: dealId },
+  }) as Promise<FundDealResponse>;
+}
+
+export async function verifyDealPayment(dealId: string): Promise<VerifyPaymentResponse> {
+  return request(OpenAPI, {
+    method: "POST",
+    url: "/api/deals/{id}/verify-payment",
+    path: { id: dealId },
+  }) as Promise<VerifyPaymentResponse>;
+}
+
+export type CreatePostingPlanProposalPayload = {
+  method: "AUTO";
+  scheduledAt: string;
+  guaranteeTermHours: number;
+  windowHours?: number;
+};
+
+export type RespondPostingPlanProposalPayload =
+  | { action: "accept" | "reject" }
+  | {
+      action: "counter";
+      counter: CreatePostingPlanProposalPayload;
+    };
+
+export async function getDealPostingPlan(dealId: string): Promise<{ postingPlan: PostingPlan; availableActions: DealAvailableActions }> {
+  const response = await request(OpenAPI, {
+    method: "GET",
+    url: "/api/deals/{id}/posting-plan",
+    path: { id: dealId },
+  }) as RawPostingPlanResponse;
+
+  return {
+    postingPlan: mapPostingPlan(response.postingPlan) ?? { proposals: [] },
+    availableActions: mapDealActions(response.availableActions),
+  };
+}
+
+export async function createPostingPlanProposal(dealId: string, payload: CreatePostingPlanProposalPayload): Promise<PostingPlan> {
+  const response = await request(OpenAPI, {
+    method: "POST",
+    url: "/api/deals/{id}/posting-plan/proposals",
+    path: { id: dealId },
+    body: payload,
+    mediaType: "application/json",
+  }) as RawPostingPlanMutationResponse;
+
+  return mapPostingPlan(response.postingPlan) ?? { proposals: [] };
+}
+
+export async function respondPostingPlanProposal(
+  dealId: string,
+  proposalId: string,
+  payload: RespondPostingPlanProposalPayload,
+): Promise<{ postingPlan: PostingPlan; status?: BackendDealStatus }> {
+  const response = await request(OpenAPI, {
+    method: "POST",
+    url: "/api/deals/{id}/posting-plan/proposals/{proposalId}/respond",
+    path: { id: dealId, proposalId },
+    body: payload,
+    mediaType: "application/json",
+  }) as RawPostingPlanMutationResponse;
+
+  return {
+    postingPlan: mapPostingPlan(response.postingPlan) ?? { proposals: [] },
+    status: response.status,
+  };
+}

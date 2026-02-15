@@ -1,0 +1,18 @@
+export const APP_ROUTES = {
+  onboarding: '/onboarding',
+  home: '/',
+  channels: '/listings',
+  channelDetail: '/listings/:id',
+  channelSettings: '/listings/:id/settings',
+  briefs: '/briefs',
+  briefDetail: '/briefs/:id',
+  briefApplications: '/briefs/:id/applications',
+  deals: '/deals',
+  dealDetail: '/deals/:id',
+  profile: '/profile',
+  createListing: '/create-listing',
+  createBrief: '/create-brief',
+  myChannels: '/my-channels',
+  myBriefs: '/my-briefs',
+  myListings: '/my-listings',
+} as const;

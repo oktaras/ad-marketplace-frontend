@@ -1,0 +1,541 @@
+{
+  "notifications": {
+    "in_app": {
+      "A01": {
+        "titleKey": "notifications.in_app.A01.title",
+        "messageKey": "notifications.in_app.A01.message",
+        "title": "Deal flow feedback",
+        "message": "Use action-specific title and outcome-first message for create/booking events.",
+        "primaryActionKey": "notifications.actions.open_deal",
+        "secondaryActionKey": "notifications.actions.retry"
+      },
+      "A02": {
+        "titleKey": "notifications.in_app.A02.title",
+        "messageKey": "notifications.in_app.A02.message",
+        "title": "Deal stage update",
+        "message": "Explain what changed and what the user should do next.",
+        "primaryActionKey": "notifications.actions.view_deal",
+        "secondaryActionKey": "notifications.actions.retry"
+      },
+      "A03": {
+        "titleKey": "notifications.in_app.A03.title",
+        "messageKey": "notifications.in_app.A03.message",
+        "title": "Brief management update",
+        "message": "Use consistent non-emoji titles except milestone celebrations.",
+        "primaryActionKey": "notifications.actions.view_brief",
+        "secondaryActionKey": "notifications.actions.retry"
+      },
+      "A04": {
+        "titleKey": "notifications.in_app.A04.title",
+        "messageKey": "notifications.in_app.A04.message",
+        "title": "Wallet status update",
+        "message": "Confirm wallet action and provide next step on failure.",
+        "primaryActionKey": "notifications.actions.open_wallet",
+        "secondaryActionKey": "notifications.actions.retry"
+      },
+      "A05": {
+        "titleKey": "notifications.in_app.A05.title",
+        "messageKey": "notifications.in_app.A05.message",
+        "title": "Posting plan update",
+        "message": "Use exact status verbs: sent, accepted, rejected, countered.",
+        "primaryActionKey": "notifications.actions.view_posting_plan",
+        "secondaryActionKey": "notifications.actions.retry"
+      },
+      "A06": {
+        "titleKey": "notifications.in_app.A06.title",
+        "messageKey": "notifications.in_app.A06.message",
+        "title": "Brief application feedback",
+        "message": "Split validation warnings from transport/system failures.",
+        "primaryActionKey": "notifications.actions.view_application",
+        "secondaryActionKey": "notifications.actions.retry"
+      },
+      "A07": {
+        "titleKey": "notifications.in_app.A07.title",
+        "messageKey": "notifications.in_app.A07.message",
+        "title": "Channel/listing operation result",
+        "message": "Keep CRUD copy consistent and use warning for partial success.",
+        "primaryActionKey": "notifications.actions.open_settings",
+        "secondaryActionKey": "notifications.actions.retry"
+      },
+      "A08": {
+        "titleKey": "notifications.in_app.A08.title",
+        "messageKey": "notifications.in_app.A08.message",
+        "title": "Listings empty/error state",
+        "message": "Use explicit load-failure and no-results templates.",
+        "primaryActionKey": "notifications.actions.retry",
+        "secondaryActionKey": "notifications.actions.clear_filters"
+      },
+      "A09": {
+        "titleKey": "notifications.in_app.A09.title",
+        "messageKey": "notifications.in_app.A09.message",
+        "title": "Deals empty/error state",
+        "message": "Keep status-filter zero-state template deterministic.",
+        "primaryActionKey": "notifications.actions.clear_filter",
+        "secondaryActionKey": "notifications.actions.retry"
+      },
+      "A10": {
+        "titleKey": "notifications.in_app.A10.title",
+        "messageKey": "notifications.in_app.A10.message",
+        "title": "Briefs empty/error state",
+        "message": "Use entity-specific load-failure title.",
+        "primaryActionKey": "notifications.actions.retry",
+        "secondaryActionKey": "notifications.actions.clear_filters"
+      },
+      "A11": {
+        "titleKey": "notifications.in_app.A11.title",
+        "messageKey": "notifications.in_app.A11.message",
+        "title": "My briefs empty/error state",
+        "message": "Keep active/closed zero-state as separate variants.",
+        "primaryActionKey": "notifications.actions.create_brief",
+        "secondaryActionKey": "notifications.actions.clear_filters"
+      },
+      "A12": {
+        "titleKey": "notifications.in_app.A12.title",
+        "messageKey": "notifications.in_app.A12.message",
+        "title": "My channels empty/error state",
+        "message": "Keep retry and create-channel CTAs standardized.",
+        "primaryActionKey": "notifications.actions.add_channel",
+        "secondaryActionKey": "notifications.actions.retry"
+      },
+      "A13": {
+        "titleKey": "notifications.in_app.A13.title",
+        "messageKey": "notifications.in_app.A13.message",
+        "title": "My listings empty/error state",
+        "message": "Mirror A12 with listing entity naming.",
+        "primaryActionKey": "notifications.actions.create_listing",
+        "secondaryActionKey": "notifications.actions.retry"
+      },
+      "A14": {
+        "titleKey": "notifications.in_app.A14.title",
+        "messageKey": "notifications.in_app.A14.message",
+        "title": "Deal timeout notice",
+        "message": "Include role owner + remaining time in message.",
+        "primaryActionKey": "notifications.actions.view_deadline",
+        "secondaryActionKey": "notifications.actions.resolve_stage"
+      },
+      "A15": {
+        "titleKey": "notifications.in_app.A15.title",
+        "messageKey": "notifications.in_app.A15.message",
+        "title": "Destructive confirmation",
+        "message": "Use action + impact + irreversible scope consistently.",
+        "primaryActionKey": "notifications.actions.confirm",
+        "secondaryActionKey": "notifications.actions.cancel"
+      },
+      "A16": {
+        "titleKey": "notifications.in_app.A16.title",
+        "messageKey": "notifications.in_app.A16.message",
+        "title": "Status badge base",
+        "message": "Keep semantic variant mapping centralized.",
+        "primaryActionKey": "",
+        "secondaryActionKey": ""
+      },
+      "A17": {
+        "titleKey": "notifications.in_app.A17.title",
+        "messageKey": "notifications.in_app.A17.message",
+        "title": "Deal status badge map",
+        "message": "Map terminal states to user-expected severity.",
+        "primaryActionKey": "",
+        "secondaryActionKey": ""
+      },
+      "A18": {
+        "titleKey": "notifications.in_app.A18.title",
+        "messageKey": "notifications.in_app.A18.message",
+        "title": "Brief/listing status map",
+        "message": "Keep badge language and severity aligned across entities.",
+        "primaryActionKey": "",
+        "secondaryActionKey": ""
+      },
+      "A19": {
+        "titleKey": "notifications.in_app.A19.title",
+        "messageKey": "notifications.in_app.A19.message",
+        "title": "Application status chip",
+        "message": "Replace custom chip logic with shared status badge mapping.",
+        "primaryActionKey": "",
+        "secondaryActionKey": ""
+      },
+      "A20": {
+        "titleKey": "notifications.in_app.A20.title",
+        "messageKey": "notifications.in_app.A20.message",
+        "title": "Telegram auth state",
+        "message": "Keep state labels concise and action-oriented.",
+        "primaryActionKey": "notifications.actions.connect_telegram",
+        "secondaryActionKey": "notifications.actions.retry"
+      },
+      "A21": {
+        "titleKey": "notifications.in_app.A21.title",
+        "messageKey": "notifications.in_app.A21.message",
+        "title": "Wallet network state",
+        "message": "Use explicit network-state labels, avoid overloaded “Active”.",
+        "primaryActionKey": "",
+        "secondaryActionKey": ""
+      },
+      "A22": {
+        "titleKey": "notifications.in_app.A22.title",
+        "messageKey": "notifications.in_app.A22.message",
+        "title": "Escrow state label",
+        "message": "Split disputed vs refunded copy and severity.",
+        "primaryActionKey": "notifications.actions.view_escrow",
+        "secondaryActionKey": ""
+      },
+      "A23": {
+        "titleKey": "notifications.in_app.A23.title",
+        "messageKey": "notifications.in_app.A23.message",
+        "title": "Posting plan proposal status",
+        "message": "Keep pending/accepted/rejected/countered wording exact.",
+        "primaryActionKey": "notifications.actions.respond_plan",
+        "secondaryActionKey": ""
+      },
+      "A24": {
+        "titleKey": "notifications.in_app.A24.title",
+        "messageKey": "notifications.in_app.A24.message",
+        "title": "Filter/pending chips",
+        "message": "Keep chips informative and compact.",
+        "primaryActionKey": "notifications.actions.clear_filters",
+        "secondaryActionKey": ""
+      },
+      "A25": {
+        "titleKey": "notifications.in_app.A25.title",
+        "messageKey": "notifications.in_app.A25.message",
+        "title": "Generic badge usage note",
+        "message": "Limit generic badge to non-semantic labels.",
+        "primaryActionKey": "",
+        "secondaryActionKey": ""
+      },
+      "A26": {
+        "titleKey": "notifications.in_app.A26.title",
+        "messageKey": "notifications.in_app.A26.message",
+        "title": "Tooltip usage note",
+        "message": "Tooltip remains explanatory, not alerting channel.",
+        "primaryActionKey": "",
+        "secondaryActionKey": ""
+      },
+      "A27": {
+        "titleKey": "notifications.in_app.A27.title",
+        "messageKey": "notifications.in_app.A27.message",
+        "title": "Sidebar tooltip usage note",
+        "message": "Keep collapsed-nav tooltip behavior unchanged.",
+        "primaryActionKey": "",
+        "secondaryActionKey": ""
+      },
+      "A28": {
+        "titleKey": "notifications.in_app.A28.title",
+        "messageKey": "notifications.in_app.A28.message",
+        "title": "Chart tooltip style note",
+        "message": "Consolidate shared chart tooltip style preset.",
+        "primaryActionKey": "",
+        "secondaryActionKey": ""
+      }
+    },
+    "in_chat": {
+      "B01": {
+        "titleKey": "notifications.in_chat.B01.title",
+        "messageKey": "notifications.in_chat.B01.message",
+        "title": "New brief application",
+        "message": "Someone applied to your brief. Review and respond in the app.",
+        "primaryActionKey": "notifications.actions.view_applications",
+        "secondaryActionKey": "notifications.actions.open_briefs"
+      },
+      "B02": {
+        "titleKey": "notifications.in_chat.B02.title",
+        "messageKey": "notifications.in_chat.B02.message",
+        "title": "Application accepted",
+        "message": "Your application was accepted and a deal was created.",
+        "primaryActionKey": "notifications.actions.view_deal",
+        "secondaryActionKey": ""
+      },
+      "B03": {
+        "titleKey": "notifications.in_chat.B03.title",
+        "messageKey": "notifications.in_chat.B03.message",
+        "title": "Application not selected",
+        "message": "This brief selected another channel. Review feedback and apply elsewhere.",
+        "primaryActionKey": "notifications.actions.browse_briefs",
+        "secondaryActionKey": "notifications.actions.view_feedback"
+      },
+      "B04": {
+        "titleKey": "notifications.in_chat.B04.title",
+        "messageKey": "notifications.in_chat.B04.message",
+        "title": "New deal request",
+        "message": "A new deal request is waiting for your review.",
+        "primaryActionKey": "notifications.actions.open_deal",
+        "secondaryActionKey": ""
+      },
+      "B05": {
+        "titleKey": "notifications.in_chat.B05.title",
+        "messageKey": "notifications.in_chat.B05.message",
+        "title": "Deal created",
+        "message": "Your deal request was created successfully.",
+        "primaryActionKey": "notifications.actions.open_deal",
+        "secondaryActionKey": ""
+      },
+      "B06": {
+        "titleKey": "notifications.in_chat.B06.title",
+        "messageKey": "notifications.in_chat.B06.message",
+        "title": "Deal status updated",
+        "message": "Deal status changed. Open deal details for next step.",
+        "primaryActionKey": "notifications.actions.open_deal",
+        "secondaryActionKey": ""
+      },
+      "B07": {
+        "titleKey": "notifications.in_chat.B07.title",
+        "messageKey": "notifications.in_chat.B07.message",
+        "title": "Deal accepted",
+        "message": "Terms accepted. Fund escrow to continue workflow.",
+        "primaryActionKey": "notifications.actions.fund_escrow",
+        "secondaryActionKey": ""
+      },
+      "B08": {
+        "titleKey": "notifications.in_chat.B08.title",
+        "messageKey": "notifications.in_chat.B08.message",
+        "title": "Deal cancelled",
+        "message": "The deal was cancelled. Open details to review reason and impact.",
+        "primaryActionKey": "notifications.actions.view_details",
+        "secondaryActionKey": "notifications.actions.contact_support"
+      },
+      "B09": {
+        "titleKey": "notifications.in_chat.B09.title",
+        "messageKey": "notifications.in_chat.B09.message",
+        "title": "Deal completed",
+        "message": "Deal is complete and payout is released.",
+        "primaryActionKey": "notifications.actions.view_payout",
+        "secondaryActionKey": ""
+      },
+      "B10": {
+        "titleKey": "notifications.in_chat.B10.title",
+        "messageKey": "notifications.in_chat.B10.message",
+        "title": "Deal completed",
+        "message": "Deal is complete. View final execution details.",
+        "primaryActionKey": "notifications.actions.view_report",
+        "secondaryActionKey": ""
+      },
+      "B11": {
+        "titleKey": "notifications.in_chat.B11.title",
+        "messageKey": "notifications.in_chat.B11.message",
+        "title": "Creative ready for review",
+        "message": "Creative was submitted and is waiting for your decision.",
+        "primaryActionKey": "notifications.actions.review_creative",
+        "secondaryActionKey": ""
+      },
+      "B12": {
+        "titleKey": "notifications.in_chat.B12.title",
+        "messageKey": "notifications.in_chat.B12.message",
+        "title": "Creative approved",
+        "message": "Creative was approved. Check the posting plan schedule.",
+        "primaryActionKey": "notifications.actions.view_posting_plan",
+        "secondaryActionKey": ""
+      },
+      "B13": {
+        "titleKey": "notifications.in_chat.B13.title",
+        "messageKey": "notifications.in_chat.B13.message",
+        "title": "Revision requested",
+        "message": "Creative needs changes. Open feedback and submit a revision.",
+        "primaryActionKey": "notifications.actions.submit_revision",
+        "secondaryActionKey": "notifications.actions.view_feedback"
+      },
+      "B14": {
+        "titleKey": "notifications.in_chat.B14.title",
+        "messageKey": "notifications.in_chat.B14.message",
+        "title": "Escrow funded",
+        "message": "Escrow payment was received successfully.",
+        "primaryActionKey": "notifications.actions.view_escrow",
+        "secondaryActionKey": ""
+      },
+      "B15": {
+        "titleKey": "notifications.in_chat.B15.title",
+        "messageKey": "notifications.in_chat.B15.message",
+        "title": "Payout released",
+        "message": "Funds were released to your wallet.",
+        "primaryActionKey": "notifications.actions.open_wallet",
+        "secondaryActionKey": "notifications.actions.view_transaction"
+      },
+      "B16": {
+        "titleKey": "notifications.in_chat.B16.title",
+        "messageKey": "notifications.in_chat.B16.message",
+        "title": "Refund issued",
+        "message": "A refund was processed. Open details for reason and amount.",
+        "primaryActionKey": "notifications.actions.view_refund",
+        "secondaryActionKey": ""
+      },
+      "B17": {
+        "titleKey": "notifications.in_chat.B17.title",
+        "messageKey": "notifications.in_chat.B17.message",
+        "title": "Post published",
+        "message": "Your post is live and verification is running.",
+        "primaryActionKey": "notifications.actions.track_verification",
+        "secondaryActionKey": ""
+      },
+      "B18": {
+        "titleKey": "notifications.in_chat.B18.title",
+        "messageKey": "notifications.in_chat.B18.message",
+        "title": "Post violation detected",
+        "message": "A posting violation was detected. Open details to review resolution.",
+        "primaryActionKey": "notifications.actions.view_violation",
+        "secondaryActionKey": ""
+      },
+      "B19": {
+        "titleKey": "notifications.in_chat.B19.title",
+        "messageKey": "notifications.in_chat.B19.message",
+        "title": "Post violation detected",
+        "message": "A posting violation affected your campaign. Check refund status.",
+        "primaryActionKey": "notifications.actions.view_refund",
+        "secondaryActionKey": "notifications.actions.view_violation"
+      },
+      "B20": {
+        "titleKey": "notifications.in_chat.B20.title",
+        "messageKey": "notifications.in_chat.B20.message",
+        "title": "Deal expiring soon",
+        "message": "Deal will expire due to inactivity. Complete required action now.",
+        "primaryActionKey": "notifications.actions.take_required_action",
+        "secondaryActionKey": ""
+      },
+      "B21": {
+        "titleKey": "notifications.in_chat.B21.title",
+        "messageKey": "notifications.in_chat.B21.message",
+        "title": "Deal expired",
+        "message": "The deal expired due to inactivity. Review next steps.",
+        "primaryActionKey": "notifications.actions.view_details",
+        "secondaryActionKey": ""
+      },
+      "B22": {
+        "titleKey": "notifications.in_chat.B22.title",
+        "messageKey": "notifications.in_chat.B22.message",
+        "title": "Deal expired",
+        "message": "The deal expired and refund processing may apply.",
+        "primaryActionKey": "notifications.actions.view_refund",
+        "secondaryActionKey": "notifications.actions.view_details"
+      },
+      "B23": {
+        "titleKey": "notifications.in_chat.B23.title",
+        "messageKey": "notifications.in_chat.B23.message",
+        "title": "Welcome",
+        "message": "Open marketplace to start using Ads Marketplace.",
+        "primaryActionKey": "notifications.actions.open_marketplace",
+        "secondaryActionKey": ""
+      },
+      "B24": {
+        "titleKey": "notifications.in_chat.B24.title",
+        "messageKey": "notifications.in_chat.B24.message",
+        "title": "Deal management",
+        "message": "Use the app to track deal status and actions.",
+        "primaryActionKey": "notifications.actions.open_deal",
+        "secondaryActionKey": ""
+      },
+      "B25": {
+        "titleKey": "notifications.in_chat.B25.title",
+        "messageKey": "notifications.in_chat.B25.message",
+        "title": "Channel registration",
+        "message": "Finish channel setup and verify permissions in app.",
+        "primaryActionKey": "notifications.actions.open_channel_setup",
+        "secondaryActionKey": ""
+      },
+      "B26": {
+        "titleKey": "notifications.in_chat.B26.title",
+        "messageKey": "notifications.in_chat.B26.message",
+        "title": "No active deal selected",
+        "message": "Select a deal to view status updates.",
+        "primaryActionKey": "notifications.actions.open_deals",
+        "secondaryActionKey": ""
+      },
+      "B27": {
+        "titleKey": "notifications.in_chat.B27.title",
+        "messageKey": "notifications.in_chat.B27.message",
+        "title": "Deal not found",
+        "message": "This deal is unavailable or inaccessible.",
+        "primaryActionKey": "notifications.actions.open_deals",
+        "secondaryActionKey": ""
+      },
+      "B28": {
+        "titleKey": "notifications.in_chat.B28.title",
+        "messageKey": "notifications.in_chat.B28.message",
+        "title": "Deal status",
+        "message": "Current deal summary with amount, status, and next step.",
+        "primaryActionKey": "notifications.actions.view_deal",
+        "secondaryActionKey": ""
+      },
+      "B29": {
+        "titleKey": "notifications.in_chat.B29.title",
+        "messageKey": "notifications.in_chat.B29.message",
+        "title": "Verify command format",
+        "message": "Use `/verify <channel_id>` to continue verification.",
+        "primaryActionKey": "notifications.actions.view_help",
+        "secondaryActionKey": ""
+      },
+      "B30": {
+        "titleKey": "notifications.in_chat.B30.title",
+        "messageKey": "notifications.in_chat.B30.message",
+        "title": "Checking permissions",
+        "message": "Validating bot permissions in your channel.",
+        "primaryActionKey": "",
+        "secondaryActionKey": ""
+      },
+      "B31": {
+        "titleKey": "notifications.in_chat.B31.title",
+        "messageKey": "notifications.in_chat.B31.message",
+        "title": "Channel verified",
+        "message": "Channel verification succeeded. Continue in settings.",
+        "primaryActionKey": "notifications.actions.open_channel_settings",
+        "secondaryActionKey": ""
+      },
+      "B32": {
+        "titleKey": "notifications.in_chat.B32.title",
+        "messageKey": "notifications.in_chat.B32.message",
+        "title": "Opening approval flow",
+        "message": "Opening creative approval flow.",
+        "primaryActionKey": "notifications.actions.open_approval",
+        "secondaryActionKey": ""
+      },
+      "B33": {
+        "titleKey": "notifications.in_chat.B33.title",
+        "messageKey": "notifications.in_chat.B33.message",
+        "title": "Opening feedback flow",
+        "message": "Opening creative feedback submission flow.",
+        "primaryActionKey": "notifications.actions.open_feedback",
+        "secondaryActionKey": ""
+      }
+    },
+    "actions": {
+      "notifications.actions.open_deal": "Open Deal",
+      "notifications.actions.retry": "Retry",
+      "notifications.actions.view_deal": "View Deal",
+      "notifications.actions.view_brief": "View Brief",
+      "notifications.actions.open_wallet": "Open Wallet",
+      "notifications.actions.view_posting_plan": "View Posting Plan",
+      "notifications.actions.view_application": "View Application",
+      "notifications.actions.open_settings": "Open Settings",
+      "notifications.actions.clear_filters": "Clear Filters",
+      "notifications.actions.clear_filter": "Clear Filter",
+      "notifications.actions.create_brief": "Create Brief",
+      "notifications.actions.add_channel": "Add Channel",
+      "notifications.actions.create_listing": "Create Listing",
+      "notifications.actions.view_deadline": "View Deadline",
+      "notifications.actions.resolve_stage": "Resolve Stage",
+      "notifications.actions.confirm": "Confirm",
+      "notifications.actions.cancel": "Cancel",
+      "notifications.actions.connect_telegram": "Connect Telegram",
+      "notifications.actions.view_escrow": "View Escrow",
+      "notifications.actions.respond_plan": "Respond Plan",
+      "notifications.actions.view_applications": "View Applications",
+      "notifications.actions.open_briefs": "Open Briefs",
+      "notifications.actions.browse_briefs": "Browse Briefs",
+      "notifications.actions.view_feedback": "View Feedback",
+      "notifications.actions.fund_escrow": "Fund Escrow",
+      "notifications.actions.view_details": "View Details",
+      "notifications.actions.contact_support": "Contact Support",
+      "notifications.actions.view_payout": "View Payout",
+      "notifications.actions.view_report": "View Report",
+      "notifications.actions.review_creative": "Review Creative",
+      "notifications.actions.submit_revision": "Submit Revision",
+      "notifications.actions.view_transaction": "View Transaction",
+      "notifications.actions.view_refund": "View Refund",
+      "notifications.actions.track_verification": "Track Verification",
+      "notifications.actions.view_violation": "View Violation",
+      "notifications.actions.take_required_action": "Take Required Action",
+      "notifications.actions.open_marketplace": "Open Marketplace",
+      "notifications.actions.open_channel_setup": "Open Channel Setup",
+      "notifications.actions.open_deals": "Open Deals",
+      "notifications.actions.view_help": "View Help",
+      "notifications.actions.open_channel_settings": "Open Channel Settings",
+      "notifications.actions.open_approval": "Open Approval",
+      "notifications.actions.open_feedback": "Open Feedback"
+    }
+  }
+}
