@@ -109,4 +109,28 @@ describe("media api", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.url).toBe("http://localhost:3000/media/creative/deal/file.png");
   });
+
+  it("strips credentials from uploaded media url", async () => {
+    const prepared: PreparedCreativeMediaUpload = {
+      clientId: "m-3",
+      provider: "s3",
+      mediaType: "IMAGE",
+      storageKey: "creative/deal/file.png",
+      publicUrl: "https://user:secret@bucket-public.example.com/creative/deal/file.png",
+      expiresAt: new Date().toISOString(),
+      upload: {
+        method: "PUT",
+        url: "https://bucket-private.example.com/creative/deal/file.png?X-Amz-Signature=abc",
+      },
+    };
+
+    const fetchMock = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const file = new File(["hello"], "file.png", { type: "image/png" });
+    const result = await uploadPreparedCreativeMediaFile(prepared, file);
+
+    expect(result.url).toBe("https://bucket-public.example.com/creative/deal/file.png");
+    expect(result.url).not.toContain("@");
+  });
 });

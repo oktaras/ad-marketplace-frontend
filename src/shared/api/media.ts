@@ -26,6 +26,20 @@ type PrepareCreativeMediaResponse = {
   files?: PreparedCreativeMediaUpload[];
 };
 
+function sanitizeUploadedUrl(value: string): string {
+  const trimmed = value.trim();
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error("Uploaded file URL is invalid");
+  }
+
+  parsed.username = "";
+  parsed.password = "";
+  return parsed.toString();
+}
+
 export async function prepareDealCreativeMediaUploads(
   dealId: string,
   files: PrepareCreativeMediaFileInput[],
@@ -78,8 +92,10 @@ export async function uploadPreparedCreativeMediaFile(
     throw new Error("Uploaded file URL is missing");
   }
 
+  const sanitizedUploadedUrl = sanitizeUploadedUrl(uploadedUrl);
+
   return {
-    url: uploadedUrl,
+    url: sanitizedUploadedUrl,
     provider: prepared.provider,
     storageKey: prepared.storageKey,
   };
