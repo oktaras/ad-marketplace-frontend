@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Text } from "@telegram-tools/ui-kit";
 import { Button } from "@/components/ui/button";
 import { AppSheet } from "@/components/common/AppSheet";
-import { ChevronRight, Copy, Check, Zap, Unlink, AlertCircle, Wallet, Loader2 } from "lucide-react";
-import { CHAIN, toUserFriendlyAddress, useTonAddress, useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
+import { ChevronRight, Copy, Check, Unlink, Wallet, Loader2 } from "lucide-react";
+import { useTonConnectUI } from "@tonconnect/ui-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { AuthService, DealsService, UsersService } from "@/shared/api/generated";
@@ -14,7 +14,6 @@ import { WALLET_NETWORK_BADGE } from "@/shared/notifications/status-maps";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useTelegramPopupConfirm } from "@/shared/lib/telegram-popup-confirm";
 
-type WalletState = "disconnected" | "linked" | "connected" | "mismatch";
 type NetworkKind = "mainnet" | "testnet" | "unknown";
 
 type AwaitingPaymentSummary = {
@@ -27,34 +26,13 @@ function isRawTonAddress(address: string): boolean {
   return /^-?\d+:[0-9a-fA-F]{64}$/.test(address.trim());
 }
 
-function toComparableAddress(address: string | null | undefined): string | null {
-  if (!address || typeof address !== "string") {
-    return null;
-  }
-
-  const trimmed = address.trim();
-  return trimmed ? trimmed.toLowerCase() : null;
-}
-
-function formatAddressForUi(address: string | null | undefined, chain: string | null): string | null {
+function formatAddressForUi(address: string | null | undefined): string | null {
   if (!address) {
     return null;
   }
 
   const trimmed = address.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  if (!isRawTonAddress(trimmed)) {
-    return trimmed;
-  }
-
-  try {
-    return toUserFriendlyAddress(trimmed, chain === CHAIN.TESTNET);
-  } catch {
-    return trimmed;
-  }
+  return trimmed || null;
 }
 
 function toShortAddress(address: string | null | undefined): string {
@@ -138,65 +116,15 @@ export function WalletCard() {
   const [showDetail, setShowDetail] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
   const confirmWithPopup = useTelegramPopupConfirm();
-  const pendingAutoLinkRef = useRef(false);
-  const pendingPreviousWalletRef = useRef<string | null>(null);
-  const walletModalCancelledRef = useRef(false);
+  const hasHydratedProfileRef = useRef(false);
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const linkedWalletAddress = useAuthStore((state) => state.user?.walletAddress ?? null);
   const updateUser = useAuthStore((state) => state.updateUser);
   const [tonConnectUI] = useTonConnectUI();
-  const wallet = useTonWallet();
-  const connectedFriendlyAddress = useTonAddress();
-  const connectedRawAddress = wallet?.account?.address ?? null;
-  const connectedChain = wallet?.account?.chain ?? null;
-  const connectedAppName = wallet?.device.appName ?? null;
 
-  const linkedComparableAddress = useMemo(
-    () => toComparableAddress(linkedWalletAddress),
-    [linkedWalletAddress],
-  );
-  const connectedComparableAddress = useMemo(
-    () => toComparableAddress(connectedRawAddress ?? connectedFriendlyAddress),
-    [connectedRawAddress, connectedFriendlyAddress],
-  );
-
-  const hasConnectedWallet = Boolean(connectedRawAddress || connectedFriendlyAddress);
   const hasLinkedWallet = Boolean(linkedWalletAddress);
-  const isAddressMatch = useMemo(() => {
-    if (!linkedComparableAddress || !connectedComparableAddress) {
-      return false;
-    }
-
-    if (linkedWalletAddress && isRawTonAddress(linkedWalletAddress) && connectedRawAddress) {
-      return linkedComparableAddress === toComparableAddress(connectedRawAddress);
-    }
-
-    return linkedComparableAddress === connectedComparableAddress;
-  }, [linkedComparableAddress, connectedComparableAddress, linkedWalletAddress, connectedRawAddress]);
-
-  const walletState: WalletState = useMemo(() => {
-    if (!hasLinkedWallet) {
-      return "disconnected";
-    }
-
-    if (!hasConnectedWallet) {
-      return "linked";
-    }
-
-    return isAddressMatch ? "connected" : "mismatch";
-  }, [hasLinkedWallet, hasConnectedWallet, isAddressMatch]);
-
-  const linkedDisplayAddress = useMemo(
-    () => formatAddressForUi(linkedWalletAddress, connectedChain),
-    [linkedWalletAddress, connectedChain],
-  );
-  const connectedDisplayAddress = useMemo(
-    () => connectedFriendlyAddress || formatAddressForUi(connectedRawAddress, connectedChain),
-    [connectedFriendlyAddress, connectedRawAddress, connectedChain],
-  );
-
-  const displayAddress = linkedDisplayAddress || connectedDisplayAddress || null;
+  const displayAddress = useMemo(() => formatAddressForUi(linkedWalletAddress), [linkedWalletAddress]);
   const shortAddress = toShortAddress(displayAddress);
 
   const awaitingPaymentQuery = useQuery({
@@ -246,43 +174,28 @@ export function WalletCard() {
       : `${awaitingPaymentSummary.count} deals awaiting funding`;
   }, [awaitingPaymentSummary]);
 
-  const networkKind: NetworkKind = useMemo(() => {
-    if (connectedChain === CHAIN.TESTNET) {
-      return "testnet";
-    }
-
-    if (connectedChain === CHAIN.MAINNET) {
-      return "mainnet";
-    }
-
-    return inferNetworkFromAddress(connectedFriendlyAddress || linkedWalletAddress);
-  }, [connectedChain, connectedFriendlyAddress, linkedWalletAddress]);
+  const networkKind: NetworkKind = useMemo(
+    () => inferNetworkFromAddress(linkedWalletAddress),
+    [linkedWalletAddress],
+  );
 
   const networkLabel = networkKind === "testnet"
     ? "TON Testnet"
     : networkKind === "mainnet"
       ? "TON Mainnet"
       : "Unknown Network";
-  const networkHint = connectedChain
-    ? "Detected from active wallet session"
-    : linkedWalletAddress
-      ? "Detected from linked wallet address"
-      : "Connect wallet to detect network";
+  const networkHint = linkedWalletAddress
+    ? "Detected from linked wallet address"
+    : "Link wallet to detect network";
 
   const networkBadge = WALLET_NETWORK_BADGE[networkKind];
 
-  const walletAppLabel = connectedAppName || (linkedWalletAddress ? "Linked in account" : "Not connected");
-  const connectionHint = walletState === "connected"
-    ? "Connected in app and linked to this account."
-    : walletState === "linked"
-      ? "Linked to account. Connect wallet app on this device to sign payments here."
-      : walletState === "mismatch"
-        ? "Connected wallet differs from linked wallet."
-        : hasConnectedWallet
-          ? "Wallet is connected in app, but not linked to this account yet."
-          : "No wallet connected.";
+  const walletAppLabel = linkedWalletAddress ? "Linked in account" : "Not connected";
+  const connectionHint = linkedWalletAddress
+    ? "Connected and linked to this account in backend profile."
+    : "No wallet linked.";
 
-  const syncWalletAddressFromProfile = async (): Promise<string | null> => {
+  const syncWalletAddressFromProfile = useCallback(async (): Promise<string | null> => {
     const profile = await UsersService.getApiUsersMe();
     const walletAddress = typeof profile.user?.walletAddress === "string"
       ? profile.user.walletAddress
@@ -290,14 +203,29 @@ export function WalletCard() {
 
     updateUser({ walletAddress });
     return walletAddress;
-  };
+  }, [updateUser]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      hasHydratedProfileRef.current = false;
+      return;
+    }
+
+    if (hasHydratedProfileRef.current) {
+      return;
+    }
+
+    hasHydratedProfileRef.current = true;
+    void syncWalletAddressFromProfile().catch(() => {
+      // Keep existing state if the initial hydration request fails.
+    });
+  }, [isAuthenticated, syncWalletAddressFromProfile]);
 
   const linkWalletMutation = useMutation({
     mutationFn: async (address: string) => {
       await AuthService.postApiAuthWalletConnect({
         requestBody: {
           address,
-          publicKey: wallet?.account?.publicKey,
         },
       });
 
@@ -322,8 +250,6 @@ export function WalletCard() {
     },
   });
 
-  const linkWallet = linkWalletMutation.mutate;
-
   const disconnectWalletMutation = useMutation({
     mutationFn: async () => {
       if (!linkedWalletAddress) {
@@ -333,20 +259,12 @@ export function WalletCard() {
       await AuthService.deleteApiAuthWallet({ address: linkedWalletAddress });
       return linkedWalletAddress;
     },
-    onSuccess: async (disconnectedAddress) => {
+    onSuccess: async () => {
       try {
         await syncWalletAddressFromProfile();
       } catch {
         // Keep UI moving even if profile refresh fails after successful unlink.
         updateUser({ walletAddress: null });
-      }
-
-      if (connectedRawAddress && disconnectedAddress === connectedRawAddress) {
-        try {
-          await tonConnectUI.disconnect();
-        } catch {
-          // Best-effort local session disconnect after backend unlink.
-        }
       }
 
       setShowDetail(false);
@@ -358,62 +276,9 @@ export function WalletCard() {
   });
 
   const isBusy = linkWalletMutation.isPending || disconnectWalletMutation.isPending;
-  const connectButtonLabel = hasConnectedWallet ? "Switch Wallet" : "Connect Wallet";
-
-  useEffect(() => {
-    const unsubscribe = tonConnectUI.onModalStateChange((state) => {
-      if (state.status === "opened") {
-        walletModalCancelledRef.current = false;
-        return;
-      }
-
-      if (state.status !== "closed") {
-        return;
-      }
-
-      if (state.closeReason === "action-cancelled") {
-        walletModalCancelledRef.current = true;
-        pendingAutoLinkRef.current = false;
-        pendingPreviousWalletRef.current = null;
-      } else {
-        walletModalCancelledRef.current = false;
-      }
-    });
-
-    return unsubscribe;
-  }, [tonConnectUI]);
-
-  useEffect(() => {
-    if (!pendingAutoLinkRef.current || !connectedRawAddress) {
-      return;
-    }
-
-    const nextComparable = toComparableAddress(connectedRawAddress);
-    if (!nextComparable) {
-      return;
-    }
-
-    const previousComparable = pendingPreviousWalletRef.current;
-    if (previousComparable && previousComparable === nextComparable && linkedComparableAddress) {
-      return;
-    }
-
-    pendingAutoLinkRef.current = false;
-    pendingPreviousWalletRef.current = null;
-
-    if (linkedComparableAddress === nextComparable) {
-      return;
-    }
-
-    linkWallet(connectedRawAddress);
-  }, [connectedRawAddress, linkedComparableAddress, linkWallet]);
 
   const handleConnect = async () => {
     try {
-      walletModalCancelledRef.current = false;
-      pendingAutoLinkRef.current = true;
-      pendingPreviousWalletRef.current = connectedComparableAddress;
-
       if (showDetail) {
         setShowDetail(false);
         await new Promise((resolve) => {
@@ -421,59 +286,34 @@ export function WalletCard() {
         });
       }
 
-      if (hasConnectedWallet) {
-        await tonConnectUI.openModal();
-        return;
-      }
-
       const connectedWallet = await tonConnectUI.connectWallet();
-      const nextAddress = connectedWallet.account.address;
+      const nextAddress = connectedWallet.account.address?.trim();
 
       if (!nextAddress) {
-        pendingAutoLinkRef.current = false;
-        pendingPreviousWalletRef.current = null;
         toast(inAppToasts.wallet.connectFirst);
         return;
       }
 
-      pendingAutoLinkRef.current = false;
-      pendingPreviousWalletRef.current = null;
-
-      const nextComparable = toComparableAddress(nextAddress);
-      if (linkedComparableAddress && nextComparable && linkedComparableAddress === nextComparable) {
+      if (linkedWalletAddress && linkedWalletAddress.trim().toLowerCase() === nextAddress.toLowerCase()) {
         return;
       }
 
-      linkWallet(nextAddress);
+      linkWalletMutation.mutate(nextAddress);
     } catch (error) {
-      const wasCancelledByUser = walletModalCancelledRef.current || isUserCancelledWalletAction(error);
-
-      walletModalCancelledRef.current = false;
-      pendingAutoLinkRef.current = false;
-      pendingPreviousWalletRef.current = null;
-
-      if (!wasCancelledByUser) {
+      if (!isUserCancelledWalletAction(error)) {
         toast(inAppToasts.wallet.connectionFailed);
       }
     }
   };
 
-  const handleLinkWallet = () => {
-    if (!connectedRawAddress) {
-      toast(inAppToasts.wallet.connectFirst);
+  const handleCopy = () => {
+    if (!displayAddress) {
       return;
     }
 
-    linkWallet(connectedRawAddress);
-  };
-
-  const handleCopy = () => {
-    const addressToCopy = displayAddress || linkedWalletAddress || connectedRawAddress;
-    if (addressToCopy) {
-      navigator.clipboard.writeText(addressToCopy);
-      setAddressCopied(true);
-      setTimeout(() => setAddressCopied(false), 2000);
-    }
+    navigator.clipboard.writeText(displayAddress);
+    setAddressCopied(true);
+    setTimeout(() => setAddressCopied(false), 2000);
   };
 
   const handleDisconnectRequest = async () => {
@@ -513,16 +353,16 @@ export function WalletCard() {
         </button>
       ) : (
         <button
-          onClick={hasConnectedWallet ? () => setShowDetail(true) : handleConnect}
+          onClick={() => void handleConnect()}
           className="w-full flex items-center gap-3 p-4 bg-card rounded-xl border border-border hover:bg-secondary/50 transition-colors"
         >
           <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
             <Wallet className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="flex-1 text-left min-w-0">
-            <Text type="subheadline1" weight="medium">{hasConnectedWallet ? "Link Wallet" : "Connect Wallet"}</Text>
+            <Text type="subheadline1" weight="medium">Link Current Wallet</Text>
             <Text type="caption1" color="secondary">
-              {hasConnectedWallet ? "Wallet detected in app session" : "Link your TON wallet"}
+              Connect and link your TON wallet
             </Text>
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -533,7 +373,7 @@ export function WalletCard() {
         <div className="space-y-5">
           <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border border-primary/20 p-4 space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <Text type="subheadline2" weight="medium">Connected Wallet</Text>
+              <Text type="subheadline2" weight="medium">Linked Wallet</Text>
               <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
                 {walletAppLabel}
               </span>
@@ -541,6 +381,7 @@ export function WalletCard() {
             <button
               onClick={handleCopy}
               className="w-full flex items-center justify-between p-3 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"
+              disabled={!displayAddress}
             >
               <code className="text-xs font-mono text-foreground">{shortAddress}</code>
               <span className="ml-2 flex-shrink-0">
@@ -581,29 +422,9 @@ export function WalletCard() {
             <StatusBadge label={networkBadge.label} variant={networkBadge.variant} dot={false} />
           </div>
 
-          {walletState === "mismatch" && (
-            <div className="p-3 rounded-lg border border-destructive/20 bg-destructive/5 flex gap-2">
-              <AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-              <Text type="caption2" color="secondary">
-                Connected wallet differs from linked wallet. Link current wallet to replace backend value.
-              </Text>
-            </div>
-          )}
-
           <div className="space-y-2">
-            {/*
-            <Button variant="outline" className="w-full" onClick={handleConnect} disabled={isBusy}>
-              <Zap className="w-4 h-4" />
-              {connectButtonLabel}
-            </Button>
-            */}
-
-            {(!hasLinkedWallet || walletState === "mismatch") && (
-              <Button 
-                className="w-full" 
-                onClick={handleLinkWallet} 
-                disabled={isBusy}
-              >
+            {!hasLinkedWallet && (
+              <Button className="w-full" onClick={() => void handleConnect()} disabled={isBusy}>
                 Link Current Wallet
               </Button>
             )}
