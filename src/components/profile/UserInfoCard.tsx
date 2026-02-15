@@ -2,19 +2,27 @@ import { Text } from "@telegram-tools/ui-kit";
 import { ChevronRight } from "lucide-react";
 import { useAuthStore } from "@/features/auth/model/auth.store";
 import { useRole } from "@/contexts/RoleContext";
+import { getTelegramInitUser } from "@/shared/lib/telegram";
 
 export function UserInfoCard() {
   const user = useAuthStore((state) => state.user);
   const { role } = useRole();
+  const initUser = getTelegramInitUser();
 
-  const displayName = user?.firstName 
-    ? `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`
+  const displayName = initUser?.firstName
+    ? `${initUser.firstName}${initUser.lastName ? ' ' + initUser.lastName : ''}`
+    : user?.firstName
+      ? `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`
     : 'Telegram User';
-  const displayUsername = user?.username 
-    ? `@${user.username}` 
-    : user?.telegramId 
-      ? `ID: ${user.telegramId}` 
-      : '@tgadsmvp';
+  const displayUsername = initUser?.username
+    ? `@${initUser.username}`
+    : initUser?.id
+      ? `ID: ${initUser.id}`
+      : user?.username
+        ? `@${user.username}`
+        : user?.telegramId
+          ? `ID: ${user.telegramId}`
+          : '@tgadsmvp';
 
   return (
     <button
@@ -23,9 +31,9 @@ export function UserInfoCard() {
       }}
       className="w-full flex items-center gap-3 p-4 rounded-xl border transition-colors bg-gradient-to-r from-primary/5 to-primary/0 border-primary/10 hover:from-primary/10"
     >
-      {user?.photoUrl ? (
+      {(initUser?.photoUrl || user?.photoUrl) ? (
         <img 
-          src={user.photoUrl} 
+          src={initUser?.photoUrl || user?.photoUrl || undefined} 
           alt={displayName}
           className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
         />

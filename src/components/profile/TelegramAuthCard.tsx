@@ -20,6 +20,7 @@ import {
   getTelegramAuthStatus,
   parseTelegramAuthPayload,
 } from "@/shared/telegram-auth/status";
+import { getTelegramInitUser } from "@/shared/lib/telegram";
 import {
   CheckCircle2, AlertCircle, Loader2, Shield, Smartphone,
   ChevronRight, BarChart3, Lock, Unlink, Phone,
@@ -121,6 +122,7 @@ export function TelegramAuthCard() {
   const { role } = useRole();
   const confirmWithPopup = useTelegramPopupConfirm();
   const user = useAuthStore((state) => state.user);
+  const initUser = getTelegramInitUser();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [showSheet, setShowSheet] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
@@ -248,8 +250,18 @@ export function TelegramAuthCard() {
     || submitPasswordMutation.isPending
     || disconnectMutation.isPending;
 
-  const displayUsername = user?.username ? `@${user.username}` : (user?.firstName || "Telegram User");
-  const displayTelegramId = user?.telegramId ? `ID: ${user.telegramId}` : "ID is not available";
+  const displayUsername = initUser?.username
+    ? `@${initUser.username}`
+    : initUser?.firstName
+      ? initUser.firstName
+      : user?.username
+        ? `@${user.username}`
+        : (user?.firstName || "Telegram User");
+  const displayTelegramId = initUser?.id
+    ? `ID: ${initUser.id}`
+    : user?.telegramId
+      ? `ID: ${user.telegramId}`
+      : "ID is not available";
 
   const statusError = inlineError || telegramAuth.lastError;
   const canSubmitCode = verificationCode.trim().length >= 3;

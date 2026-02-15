@@ -34,6 +34,7 @@ type TmaSdkComponents = {
 type TmaContextValue = {
   colorScheme: 'light' | 'dark';
   initDataRaw: string | undefined;
+  isReady: boolean;
   isInTelegram: boolean;
   backButton: BackButton | null;
   miniApp: MiniApp | null;
@@ -110,6 +111,7 @@ function persistTelegramViewportCssVars(): void {
  */
 function TmaInitializer({ children }: Props) {
   const [initDataRaw, setInitDataRaw] = useState<string | undefined>();
+  const [isReady, setIsReady] = useState(false);
   const [sdkComponents, setSdkComponents] = useState<TmaSdkComponents>(() => EMPTY_TMA_SDK_COMPONENTS);
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(() => {
     // Initial color scheme from Telegram WebApp
@@ -223,6 +225,10 @@ function TmaInitializer({ children }: Props) {
       } catch (error) {
         root.dataset.tmaLoaded = '1';
         console.warn('Failed to initialize TMA SDK:', error);
+      } finally {
+        if (isMounted) {
+          setIsReady(true);
+        }
       }
     };
 
@@ -255,10 +261,11 @@ function TmaInitializer({ children }: Props) {
     () => ({
       colorScheme,
       initDataRaw,
+      isReady,
       isInTelegram: true,
       ...sdkComponents,
     }),
-    [colorScheme, initDataRaw, sdkComponents],
+    [colorScheme, initDataRaw, isReady, sdkComponents],
   );
 
   return <TmaContext.Provider value={value}>{children}</TmaContext.Provider>;
@@ -275,6 +282,7 @@ function TmaFallback({ children }: Props) {
     () => ({
       colorScheme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
       initDataRaw: undefined,
+      isReady: true,
       isInTelegram: false,
       ...EMPTY_TMA_SDK_COMPONENTS,
     }),

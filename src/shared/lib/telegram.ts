@@ -26,7 +26,17 @@ export function getTelegramInitData(): string | undefined {
     return undefined;
   }
 
-  return encoded.trim() ? encoded : undefined;
+  const normalized = encoded.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  try {
+    // Hash launch params store tgWebAppData URL-encoded.
+    return decodeURIComponent(normalized);
+  } catch {
+    return normalized;
+  }
 }
 
 function getTelegramInitDataParams(): URLSearchParams | null {
@@ -37,6 +47,85 @@ function getTelegramInitDataParams(): URLSearchParams | null {
   }
 
   return new URLSearchParams(initData);
+}
+
+export type TelegramInitUser = {
+  id: string;
+  username: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  photoUrl: string | null;
+  languageCode: string | null;
+};
+
+function normalizeTelegramInitUser(raw: unknown): TelegramInitUser | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const value = raw as Record<string, unknown>;
+  const idRaw = value.id;
+  const id = typeof idRaw === 'number'
+    ? String(idRaw)
+    : typeof idRaw === 'string' && idRaw.trim()
+      ? idRaw.trim()
+      : null;
+
+  if (!id) {
+    return null;
+  }
+
+  const usernameRaw = value.username;
+  const username = typeof usernameRaw === 'string' && usernameRaw.trim()
+    ? usernameRaw.replace(/^@+/, '').trim()
+    : null;
+
+  const firstNameRaw = value.first_name ?? value.firstName;
+  const firstName = typeof firstNameRaw === 'string' && firstNameRaw.trim()
+    ? firstNameRaw.trim()
+    : null;
+
+  const lastNameRaw = value.last_name ?? value.lastName;
+  const lastName = typeof lastNameRaw === 'string' && lastNameRaw.trim()
+    ? lastNameRaw.trim()
+    : null;
+
+  const photoUrlRaw = value.photo_url ?? value.photoUrl;
+  const photoUrl = typeof photoUrlRaw === 'string' && photoUrlRaw.trim()
+    ? photoUrlRaw.trim()
+    : null;
+
+  const languageCodeRaw = value.language_code ?? value.languageCode;
+  const languageCode = typeof languageCodeRaw === 'string' && languageCodeRaw.trim()
+    ? languageCodeRaw.trim()
+    : null;
+
+  return {
+    id,
+    username,
+    firstName,
+    lastName,
+    photoUrl,
+    languageCode,
+  };
+}
+
+export function getTelegramInitUser(): TelegramInitUser | null {
+  const fromWebApp = normalizeTelegramInitUser(window.Telegram?.WebApp?.initDataUnsafe?.user);
+  if (fromWebApp) {
+    return fromWebApp;
+  }
+
+  const rawUser = getTelegramInitDataParams()?.get('user');
+  if (!rawUser) {
+    return null;
+  }
+
+  try {
+    return normalizeTelegramInitUser(JSON.parse(rawUser));
+  } catch {
+    return null;
+  }
 }
 
 export function getTelegramStartParam(): string | undefined {
