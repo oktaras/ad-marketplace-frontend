@@ -10,7 +10,7 @@ export type PrepareCreativeMediaFileInput = {
 
 export type PreparedCreativeMediaUpload = {
   clientId: string;
-  provider: "local" | "vercel_blob";
+  provider: "local" | "s3";
   mediaType: "IMAGE" | "VIDEO" | "GIF" | "DOCUMENT" | "AUDIO";
   storageKey: string;
   publicUrl: string | null;

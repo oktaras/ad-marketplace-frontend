@@ -46,6 +46,38 @@ describe("media api", () => {
     expect(result[0]?.clientId).toBe("m-1");
   });
 
+  it("maps prepared uploads response for s3 provider", async () => {
+    vi.mocked(request).mockResolvedValue({
+      files: [
+        {
+          clientId: "m-2",
+          provider: "s3",
+          mediaType: "VIDEO",
+          storageKey: "creative/deal/file.mp4",
+          publicUrl: "https://bucket-public.example.com/creative/deal/file.mp4",
+          expiresAt: new Date().toISOString(),
+          upload: {
+            method: "PUT",
+            url: "https://bucket-private.example.com/creative/deal/file.mp4?X-Amz-Signature=abc",
+          },
+        },
+      ],
+    });
+
+    const result = await prepareDealCreativeMediaUploads("deal-2", [
+      {
+        clientId: "m-2",
+        name: "file.mp4",
+        mimeType: "video/mp4",
+        sizeBytes: 4200,
+      },
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.provider).toBe("s3");
+    expect(result[0]?.clientId).toBe("m-2");
+  });
+
   it("uploads prepared file and returns uploaded url", async () => {
     const prepared: PreparedCreativeMediaUpload = {
       clientId: "m-1",
