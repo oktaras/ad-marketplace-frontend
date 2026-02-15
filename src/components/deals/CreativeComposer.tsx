@@ -133,19 +133,6 @@ export function CreativeComposer({
         </div>
       ) : null}
 
-      <div className="space-y-1">
-        <Textarea
-          value={draftText}
-          onChange={(event) => setDraftText(event.target.value)}
-          placeholder="Write your ad post text here… Supports **bold**, [links](url), and emojis 🎉"
-          className="min-h-[120px] text-sm"
-          disabled={loading}
-        />
-        <Text type="caption2" color="tertiary">
-          Supports **bold**, *italic*, [links](url), and emojis
-        </Text>
-      </div>
-
       {media.length > 0 ? (
         <div className="flex gap-2 flex-wrap">
           {media.map((entry) => (
@@ -168,6 +155,19 @@ export function CreativeComposer({
           ))}
         </div>
       ) : null}
+
+      <div className="space-y-1">
+        <Textarea
+          value={draftText}
+          onChange={(event) => setDraftText(event.target.value)}
+          placeholder="Write your ad post text here…"
+          className="min-h-[120px] text-sm"
+          disabled={loading}
+        />
+        <Text type="caption2" color="tertiary">
+          Supports telegram markdown with **bold**, *italic*, [links](url), and emojis 🎉
+        </Text>
+      </div>
 
       {buttons.length > 0 ? (
         <div className="space-y-1.5">

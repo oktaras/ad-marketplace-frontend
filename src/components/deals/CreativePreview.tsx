@@ -77,11 +77,7 @@ export function CreativePreview({
         <Text type="caption1" color="secondary">Submitted {submission.submittedAt}</Text>
         <StatusBadge label={cfg.label} variant={cfg.variant} dot={false} />
       </div>
-
-      <div className="bg-card rounded-lg p-3 border border-border">
-        <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{renderMarkdown(submission.text)}</pre>
-      </div>
-
+      
       {media.length > 0 ? (
         <div className="flex gap-2 flex-wrap">
           {media.map((entry) => (
@@ -98,6 +94,11 @@ export function CreativePreview({
           ))}
         </div>
       ) : null}
+
+      <div className="bg-card rounded-lg p-3 border border-border">
+        <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{renderMarkdown(submission.text)}</pre>
+      </div>
+
 
       {inlineButtons.length > 0 ? (
         <div className="space-y-1.5">
