@@ -95,11 +95,11 @@ export default function Deals() {
 
   const selectedDealQuery = useQuery({
     queryKey: ["deal", routeDealId],
-    enabled: Boolean(routeDealId) && !selectedDealFromList,
+    enabled: Boolean(routeDealId),
     queryFn: () => getDealById(routeDealId!),
   });
 
-  const selectedDeal = selectedDealFromList ?? selectedDealQuery.data ?? null;
+  const selectedDeal = selectedDealQuery.data ?? selectedDealFromList ?? null;
 
   useEffect(() => {
     if (routeDealId && selectedDealQuery.isFetched && !selectedDeal) {

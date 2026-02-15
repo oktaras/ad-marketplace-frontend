@@ -1,19 +1,30 @@
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Text } from "@telegram-tools/ui-kit";
+import { CheckCircle2, Circle, Clock, Copy, ExternalLink } from "lucide-react";
 import { Deal, DEAL_STATUS_CONFIG, type CreativeMedia, type InlineButton } from "@/types/deal";
+import { AppSheet } from "@/components/common/AppSheet";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { formatCurrency } from "@/lib/format";
 import { useRole } from "@/contexts/RoleContext";
-import { Text } from "@telegram-tools/ui-kit";
-import { AppSheet } from "@/components/common/AppSheet";
-import { CheckCircle2, Circle, Clock } from "lucide-react";
-import { DealActions } from "./DealActions";
 import { DealProgressRail } from "./DealProgressRail";
-import { EscrowStatusPanel } from "./EscrowStatusPanel";
-import { ActivityTimeline } from "./ActivityTimeline";
 import { TimeoutBanner } from "./TimeoutBanner";
+import { EscrowStatusPanel } from "./EscrowStatusPanel";
 import { CreativeComposer } from "./CreativeComposer";
 import { CreativePreview } from "./CreativePreview";
 import { PostingPlanPanel } from "./PostingPlanPanel";
+import { ActivityTimeline } from "./ActivityTimeline";
+import { DealActions } from "./DealActions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
+import { env } from "@/app/config/env";
+import {
+  getDealActivity,
+  getDealCreative,
+  getDealFinance,
+  getDealPostingPlan,
+} from "@/shared/api/deals";
 
 interface DealDetailSheetProps {
   deal: Deal | null;
@@ -39,6 +50,16 @@ interface DealDetailSheetProps {
   cancelDealLoading?: boolean;
   onPostingPlanUpdated?: () => void | Promise<void>;
 }
+
+type DealDetailsTab = "overview" | "creative" | "posting-plan" | "finance" | "activity";
+
+const TAB_LABELS: Array<{ id: DealDetailsTab; label: string }> = [
+  { id: "overview", label: "Overview" },
+  { id: "creative", label: "Creative" },
+  { id: "posting-plan", label: "Posting Plan" },
+  { id: "finance", label: "Finance" },
+  { id: "activity", label: "Activity" },
+];
 
 function MilestoneTimeline({ milestones }: { milestones: Deal["milestones"] }) {
   return (
@@ -108,6 +129,13 @@ function getChatStatusHint(deal: Deal): string | null {
   return "Deal chat: Open in bot to start";
 }
 
+function getTonExplorerUrl(address: string): string {
+  const base = env.tonNetwork === "testnet"
+    ? "https://testnet.tonviewer.com"
+    : "https://tonviewer.com";
+  return `${base}/${address}`;
+}
+
 export function DealDetailSheet({
   deal,
   open,
@@ -129,179 +157,351 @@ export function DealDetailSheet({
   onPostingPlanUpdated,
 }: DealDetailSheetProps) {
   const { role } = useRole();
+  const [tab, setTab] = useState<DealDetailsTab>("overview");
+  const dealId = deal?.id ?? "";
 
-  if (!deal) return null;
+  useEffect(() => {
+    setTab("overview");
+  }, [dealId, open]);
+
+  const creativeQuery = useQuery({
+    queryKey: ["deal", dealId, "creative"],
+    queryFn: () => getDealCreative(dealId),
+    enabled: Boolean(deal) && open && tab === "creative",
+  });
+
+  const postingPlanQuery = useQuery({
+    queryKey: ["deal", dealId, "posting-plan"],
+    queryFn: () => getDealPostingPlan(dealId),
+    enabled: Boolean(deal) && open && tab === "posting-plan",
+  });
+
+  const financeQuery = useQuery({
+    queryKey: ["deal", dealId, "finance"],
+    queryFn: () => getDealFinance(dealId),
+    enabled: Boolean(deal) && open && tab === "finance",
+  });
+
+  const activityQuery = useQuery({
+    queryKey: ["deal", dealId, "activity"],
+    queryFn: () => getDealActivity(dealId),
+    enabled: Boolean(deal) && open && tab === "activity",
+  });
+
+  const creativeActions = creativeQuery.data?.availableActions ?? deal?.availableActions;
+  const creativeSubmissions = creativeQuery.data?.creativeSubmissions ?? [];
+  const creativeStatus = creativeQuery.data?.status ?? deal?.status;
+  const showSubmitCreative = Boolean(creativeActions?.submitCreative);
+
+  const financeDeal = useMemo(
+    () => {
+      if (!deal) {
+        return null;
+      }
+
+      return {
+        ...deal,
+        agreedPrice: financeQuery.data?.agreedPrice ?? deal.agreedPrice,
+        currency: financeQuery.data?.currency ?? deal.currency,
+        escrowStatus: financeQuery.data?.escrowStatus ?? deal.escrowStatus,
+        availableActions: financeQuery.data?.availableActions ?? deal.availableActions,
+      };
+    },
+    [deal, financeQuery.data],
+  );
+
+  const postingPlanData = postingPlanQuery.data;
+  const activityData = activityQuery.data ?? null;
+  const financeData = financeQuery.data ?? null;
+
+  if (!deal) {
+    return null;
+  }
 
   const statusCfg = DEAL_STATUS_CONFIG[deal.status];
   const chatStatusHint = getChatStatusHint(deal);
-  const showSubmitCreative = Boolean(deal.availableActions?.submitCreative);
-  const showPostingPlan = Boolean(deal.postingPlan) || [
-    "creative_approved",
-    "awaiting_posting_plan",
-    "posting_plan_agreed",
-    "scheduled",
-    "awaiting_manual_post",
-    "posting",
-    "posted",
-    "verified",
-    "completed",
-  ].includes(deal.status);
 
   const handleSubmitCreative = (data: {
     text: string;
     media: CreativeMedia[];
     inlineButtons: InlineButton[];
   }) => {
-    onSubmitCreative?.(deal.id, data);
+    if (!dealId) {
+      return;
+    }
+    onSubmitCreative?.(dealId, data);
   };
 
   const handleApprove = () => {
-    onApproveCreative?.(deal.id);
+    if (!dealId) {
+      return;
+    }
+    onApproveCreative?.(dealId);
   };
 
   const handleRequestRevision = (feedback: string) => {
-    onRequestCreativeRevision?.(deal.id, feedback);
+    if (!dealId) {
+      return;
+    }
+    onRequestCreativeRevision?.(dealId, feedback);
+  };
+
+  const handleCopyEscrowAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      toast({
+        title: "Escrow address copied",
+        description: "The contract address has been copied to clipboard.",
+      });
+    } catch {
+      toast({
+        title: "Copy failed",
+        description: "Could not copy address. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
     <AppSheet open={open} onOpenChange={onOpenChange} title="Deal Details" fullHeight>
-      <div className="space-y-5">
-        <div className="bg-card rounded-xl border border-border p-4 space-y-3">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-2xl">
-                {role === "advertiser" ? deal.channelAvatar : deal.advertiserAvatar}
+      <Tabs value={tab} onValueChange={(next) => setTab(next as DealDetailsTab)} className="space-y-4">
+        <div className="overflow-x-auto -mx-4 px-4">
+          <TabsList className="w-max min-w-full justify-start gap-1 bg-secondary/60">
+            {TAB_LABELS.map((tabOption) => (
+              <TabsTrigger key={tabOption.id} value={tabOption.id} className="text-xs sm:text-sm">
+                {tabOption.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+
+        <TabsContent value="overview" className="space-y-5">
+          <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-2xl">
+                  {role === "advertiser" ? deal.channelAvatar : deal.advertiserAvatar}
+                </div>
+                <div>
+                  <Text type="body" weight="medium">
+                    {role === "advertiser" ? deal.channelName : deal.advertiserName}
+                  </Text>
+                  <Text type="caption1" color="secondary">
+                    {role === "advertiser" ? deal.channelUsername : "Advertiser"}
+                  </Text>
+                </div>
               </div>
-              <div>
-                <Text type="body" weight="medium">
-                  {role === "advertiser" ? deal.channelName : deal.advertiserName}
-                </Text>
-                <Text type="caption1" color="secondary">
-                  {role === "advertiser" ? deal.channelUsername : "Advertiser"}
-                </Text>
+              <StatusBadge label={statusCfg.label} icon={statusCfg.emoji} variant={statusCfg.badgeVariant ?? "muted"} />
+            </div>
+
+            {deal.briefTitle ? (
+              <div className="bg-secondary/50 rounded-lg px-3 py-2">
+                <Text type="caption1" color="secondary">Brief</Text>
+                <Text type="subheadline1" weight="medium">{deal.briefTitle}</Text>
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="bg-secondary/50 rounded-lg py-2">
+                <Text type="caption2" color="secondary">Price</Text>
+                <Text type="subheadline1" weight="medium">{formatCurrency(deal.agreedPrice, deal.currency)}</Text>
+              </div>
+              <div className="bg-secondary/50 rounded-lg py-2">
+                <Text type="caption2" color="secondary">Format</Text>
+                <Text type="subheadline1" weight="medium"><span className="capitalize">{deal.format}</span></Text>
+              </div>
+              <div className="bg-secondary/50 rounded-lg py-2">
+                <Text type="caption2" color="secondary">Created</Text>
+                <Text type="subheadline1" weight="medium">{formatDateLabel(deal.createdAt)}</Text>
               </div>
             </div>
-            <StatusBadge label={statusCfg.label} icon={statusCfg.emoji} variant={statusCfg.badgeVariant ?? "muted"} />
+
+            {chatStatusHint ? (
+              <div className="bg-secondary/40 rounded-lg px-3 py-2">
+                <Text type="caption1" color="secondary">{chatStatusHint}</Text>
+              </div>
+            ) : null}
           </div>
 
-          {deal.briefTitle ? (
-            <div className="bg-secondary/50 rounded-lg px-3 py-2">
-              <Text type="caption1" color="secondary">Brief</Text>
-              <Text type="subheadline1" weight="medium">{deal.briefTitle}</Text>
-            </div>
-          ) : null}
+          <DealProgressRail deal={deal} />
+          <TimeoutBanner deal={deal} />
 
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="bg-secondary/50 rounded-lg py-2">
-              <Text type="caption2" color="secondary">Price</Text>
-              <Text type="subheadline1" weight="medium">{formatCurrency(deal.agreedPrice, deal.currency)}</Text>
-            </div>
-            <div className="bg-secondary/50 rounded-lg py-2">
-              <Text type="caption2" color="secondary">Format</Text>
-              <Text type="subheadline1" weight="medium"><span className="capitalize">{deal.format}</span></Text>
-            </div>
-            <div className="bg-secondary/50 rounded-lg py-2">
-              <Text type="caption2" color="secondary">Created</Text>
-              <Text type="subheadline1" weight="medium">{formatDateLabel(deal.createdAt)}</Text>
-            </div>
+          <div className="space-y-3">
+            <Text type="subheadline1" weight="medium">Timeline</Text>
+            <MilestoneTimeline milestones={deal.milestones} />
           </div>
 
-          {chatStatusHint ? (
-            <div className="bg-secondary/40 rounded-lg px-3 py-2">
-              <Text type="caption1" color="secondary">{chatStatusHint}</Text>
-            </div>
-          ) : null}
-        </div>
-
-        <DealProgressRail deal={deal} />
-
-        <TimeoutBanner deal={deal} />
-
-        <EscrowStatusPanel
-          deal={deal}
-          role={role}
-          onFundDeal={onFundDeal}
-          fundDealLoading={fundDealLoading}
-          onVerifyPayment={onVerifyPayment}
-          verifyPaymentLoading={verifyPaymentLoading}
-        />
-
-        <div className="space-y-3">
-          <Text type="subheadline1" weight="medium">Timeline</Text>
-          <MilestoneTimeline milestones={deal.milestones} />
-        </div>
-
-        <div className="space-y-3">
-          <Text type="subheadline1" weight="medium">
-            Creative {deal.creativeSubmissions.length > 0 ? `(${deal.creativeSubmissions.length})` : ""}
-          </Text>
-
-          {deal.creativeSubmissions.length === 0 && !showSubmitCreative ? (
-            <div className="text-center py-6 bg-secondary/30 rounded-xl">
-              <Text type="caption1" color="secondary">No creative submitted yet</Text>
-            </div>
-          ) : null}
-
-          {deal.creativeSubmissions.map((submission) => (
-            <CreativePreview
-              key={submission.id}
-              submission={submission}
-              role={role}
-              onApprove={handleApprove}
-              onRequestRevision={handleRequestRevision}
-              approvingLoading={approveCreativeLoading}
-              revisionLoading={requestCreativeRevisionLoading}
-            />
-          ))}
-
-          {showSubmitCreative ? (
-            <CreativeComposer
-              onSubmit={handleSubmitCreative}
-              isRevision={deal.status === "creative_revision"}
-              existingFeedback={deal.creativeSubmissions[deal.creativeSubmissions.length - 1]?.feedback}
-              loading={submitCreativeLoading}
-            />
-          ) : null}
-        </div>
-
-        {showPostingPlan ? (
-          <PostingPlanPanel
-            dealId={deal.id}
-            plan={deal.postingPlan ?? { proposals: [] }}
+          <DealActions
+            deal={deal}
             role={role}
-            availableActions={deal.availableActions}
-            onUpdated={onPostingPlanUpdated}
+            onAcceptTerms={onAcceptTerms}
+            acceptTermsLoading={acceptTermsLoading}
+            onCancelDeal={onCancelDeal}
+            cancelDealLoading={cancelDealLoading}
           />
-        ) : null}
+        </TabsContent>
 
-        <div className="space-y-2">
-          <Text type="subheadline1" weight="medium">Dispute</Text>
-          <div className="bg-secondary/30 rounded-xl border border-border p-3 space-y-2">
-            <Text type="caption1" color="secondary">
-              Dispute flow is coming soon. Current workflow remains in bot/admin path.
-            </Text>
-            <div className="flex gap-2">
-              <Button variant="outline" className="flex-1" disabled>
-                Open Dispute
-              </Button>
-              <Button variant="outline" className="flex-1" disabled>
-                View Resolution
-              </Button>
+        <TabsContent value="creative" className="space-y-4">
+          {creativeQuery.isLoading ? (
+            <div className="text-center py-6 bg-secondary/30 rounded-xl">
+              <Text type="caption1" color="secondary">Loading creative…</Text>
             </div>
-          </div>
-        </div>
+          ) : creativeQuery.isError ? (
+            <div className="text-center py-6 bg-secondary/30 rounded-xl">
+              <Text type="caption1" color="secondary">Could not load creative tab</Text>
+            </div>
+          ) : (
+            <>
+              <Text type="subheadline1" weight="medium">
+                Creative {creativeSubmissions.length > 0 ? `(${creativeSubmissions.length})` : ""}
+              </Text>
 
-        <ActivityTimeline deal={deal} />
+              {creativeSubmissions.length === 0 && !showSubmitCreative ? (
+                <div className="text-center py-6 bg-secondary/30 rounded-xl">
+                  <Text type="caption1" color="secondary">No creative submitted yet</Text>
+                </div>
+              ) : null}
 
-        <DealActions
-          deal={deal}
-          role={role}
-          onAcceptTerms={onAcceptTerms}
-          acceptTermsLoading={acceptTermsLoading}
-          onCancelDeal={onCancelDeal}
-          cancelDealLoading={cancelDealLoading}
-        />
-      </div>
+              {creativeSubmissions.map((submission) => (
+                <CreativePreview
+                  key={submission.id}
+                  submission={submission}
+                  role={role}
+                  onApprove={handleApprove}
+                  onRequestRevision={handleRequestRevision}
+                  approvingLoading={approveCreativeLoading}
+                  revisionLoading={requestCreativeRevisionLoading}
+                />
+              ))}
+
+              {showSubmitCreative ? (
+                <CreativeComposer
+                  onSubmit={handleSubmitCreative}
+                  isRevision={creativeStatus === "creative_revision"}
+                  existingFeedback={creativeSubmissions[creativeSubmissions.length - 1]?.feedback}
+                  loading={submitCreativeLoading}
+                />
+              ) : null}
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="posting-plan" className="space-y-4">
+          {postingPlanQuery.isLoading ? (
+            <div className="text-center py-6 bg-secondary/30 rounded-xl">
+              <Text type="caption1" color="secondary">Loading posting plan…</Text>
+            </div>
+          ) : postingPlanQuery.isError ? (
+            <div className="text-center py-6 bg-secondary/30 rounded-xl">
+              <Text type="caption1" color="secondary">Could not load posting plan</Text>
+            </div>
+          ) : (
+            <PostingPlanPanel
+              dealId={deal.id}
+              plan={postingPlanData?.postingPlan ?? { proposals: [] }}
+              role={role}
+              availableActions={postingPlanData?.availableActions ?? deal.availableActions}
+              onUpdated={onPostingPlanUpdated}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="finance" className="space-y-4">
+          {financeQuery.isLoading ? (
+            <div className="text-center py-6 bg-secondary/30 rounded-xl">
+              <Text type="caption1" color="secondary">Loading finance data…</Text>
+            </div>
+          ) : financeQuery.isError ? (
+            <div className="text-center py-6 bg-secondary/30 rounded-xl">
+              <Text type="caption1" color="secondary">Could not load finance tab</Text>
+            </div>
+          ) : (
+            <>
+              <EscrowStatusPanel
+                deal={financeDeal ?? deal}
+                role={role}
+                onFundDeal={onFundDeal}
+                fundDealLoading={fundDealLoading}
+                onVerifyPayment={onVerifyPayment}
+                verifyPaymentLoading={verifyPaymentLoading}
+              />
+
+              <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+                <Text type="subheadline1" weight="medium">Deal Amount Breakdown</Text>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-secondary/50 rounded-lg px-3 py-2">
+                    <Text type="caption2" color="secondary">Platform Fee</Text>
+                    <Text type="caption1" weight="medium">
+                      {formatCurrency(financeData?.platformFeeAmount ?? 0, financeData?.currency ?? deal.currency)}
+                    </Text>
+                  </div>
+                  <div className="bg-secondary/50 rounded-lg px-3 py-2">
+                    <Text type="caption2" color="secondary">Publisher Payout</Text>
+                    <Text type="caption1" weight="medium">
+                      {formatCurrency(financeData?.publisherAmount ?? 0, financeData?.currency ?? deal.currency)}
+                    </Text>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-card rounded-xl border border-border p-4 space-y-3">
+                <Text type="subheadline1" weight="medium">Escrow Wallet</Text>
+                <div className="space-y-2">
+                  <div className="bg-secondary/50 rounded-lg px-3 py-2">
+                    <Text type="caption2" color="secondary">Contract Address</Text>
+                    <Text type="caption1" className="break-all">
+                      {financeData?.escrowWallet?.contractAddress || "Not deployed yet"}
+                    </Text>
+                  </div>
+                  <div className="bg-secondary/50 rounded-lg px-3 py-2">
+                    <Text type="caption2" color="secondary">Cached Balance</Text>
+                    <Text type="caption1" weight="medium">
+                      {financeData?.escrowWallet?.cachedBalance ?? "—"}
+                    </Text>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      if (financeData?.escrowWallet?.contractAddress) {
+                        void handleCopyEscrowAddress(financeData.escrowWallet.contractAddress);
+                      }
+                    }}
+                    disabled={!financeData?.escrowWallet?.contractAddress}
+                  >
+                    <Copy className="w-4 h-4" />
+                    Copy Escrow Address
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      const address = financeData?.escrowWallet?.contractAddress;
+                      if (!address) {
+                        return;
+                      }
+
+                      window.open(getTonExplorerUrl(address), "_blank", "noopener,noreferrer");
+                    }}
+                    disabled={!financeData?.escrowWallet?.contractAddress}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Open in Explorer
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="activity" className="space-y-4">
+          <ActivityTimeline activity={activityData} loading={activityQuery.isLoading} />
+          <DealActions deal={deal} role={role} chatOnly />
+        </TabsContent>
+      </Tabs>
     </AppSheet>
   );
 }

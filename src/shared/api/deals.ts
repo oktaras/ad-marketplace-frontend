@@ -2,13 +2,18 @@ import { OpenAPI } from "@/shared/api/generated/core/OpenAPI";
 import { request } from "@/shared/api/generated/core/request";
 import type {
   BackendDealStatus,
+  DealActivityData,
+  DealActivityItem,
   CreativeSubmission,
   Deal,
   DealChat,
   DealChatStatus,
   DealAvailableActions,
+  DealCreativeData,
   DealDeadlines,
   DealEscrowStatus,
+  DealFinanceData,
+  DealFinanceWallet,
   DealMilestone,
   DealStatus,
   DealStatusHistoryEntry,
@@ -80,7 +85,7 @@ type RawDeal = {
     id: string;
     username: string | null;
     title: string;
-    categories: Array<{
+    categories?: Array<{
       slug: string;
       name: string;
       icon: string | null;
@@ -103,7 +108,7 @@ type RawDeal = {
     id: string;
     title: string;
   } | null;
-  creative: {
+  creative?: {
     id: string;
     text: string | null;
     mediaUrls: string[];
@@ -140,6 +145,50 @@ type RawDealsResponse = {
 
 type RawDealResponse = {
   deal?: RawDeal;
+};
+
+type RawDealCreativeResponse = {
+  status?: BackendDealStatus | string | null;
+  workflowStatus?: BackendDealStatus | string | null;
+  availableActions?: Partial<DealAvailableActions> | null;
+  creative?: RawDeal["creative"] | null;
+};
+
+type RawDealFinanceResponse = {
+  status?: BackendDealStatus | string | null;
+  workflowStatus?: BackendDealStatus | string | null;
+  availableActions?: Partial<DealAvailableActions> | null;
+  finance?: {
+    agreedPrice?: string | null;
+    currency?: string | null;
+    platformFeeAmount?: string | null;
+    publisherAmount?: string | null;
+    escrowStatus?: DealEscrowStatus;
+    escrowWallet?: {
+      id?: string;
+      address?: string | null;
+      contractAddress?: string | null;
+      isDeployed?: boolean;
+      cachedBalance?: string | null;
+    } | null;
+  } | null;
+};
+
+type RawDealActivityResponse = {
+  status?: BackendDealStatus | string | null;
+  workflowStatus?: BackendDealStatus | string | null;
+  activity?: Array<{
+    id?: string;
+    timestamp?: string;
+    actor?: string;
+    type?: string;
+    title?: string;
+    detail?: string;
+  }> | null;
+  disputeSummary?: {
+    total?: number;
+    active?: number;
+  } | null;
 };
 
 type RawOpenDealChatResponse = {
@@ -407,6 +456,22 @@ function toUiDealStatus(status: BackendDealStatus): DealStatus {
   return BACKEND_TO_UI_STATUS[status];
 }
 
+function normalizeBackendDealStatus(
+  value: unknown,
+  fallback: BackendDealStatus = "CREATED",
+): BackendDealStatus {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalized = value.toUpperCase();
+  if (!BACKEND_STATUS_SET.has(normalized as BackendDealStatus)) {
+    return fallback;
+  }
+
+  return normalized as BackendDealStatus;
+}
+
 function parseStatusHistory(raw: unknown): DealStatusHistoryEntry[] {
   if (!Array.isArray(raw)) {
     return [];
@@ -550,12 +615,12 @@ function parseCreativeButtons(rawButtons: unknown): Array<{ label: string; url: 
     .filter((entry): entry is { label: string; url: string } => entry !== null);
 }
 
-function mapCreativeSubmission(raw: RawDeal): CreativeSubmission[] {
-  if (!raw.creative) {
+function mapCreativeSubmission(rawCreative: RawDeal["creative"] | null | undefined): CreativeSubmission[] {
+  if (!rawCreative) {
     return [];
   }
 
-  const creativeStatus = raw.creative.status.toUpperCase();
+  const creativeStatus = rawCreative.status.toUpperCase();
   const status: CreativeSubmission["status"] =
     creativeStatus === "APPROVED" || creativeStatus === "POSTED"
       ? "approved"
@@ -563,9 +628,9 @@ function mapCreativeSubmission(raw: RawDeal): CreativeSubmission[] {
         ? "revision_requested"
         : "pending";
 
-  const mediaUrls = Array.isArray(raw.creative.mediaUrls) ? raw.creative.mediaUrls : [];
-  const mediaTypes = Array.isArray(raw.creative.mediaTypes) ? raw.creative.mediaTypes : [];
-  const mediaMeta = Array.isArray(raw.creative.mediaMeta) ? raw.creative.mediaMeta : [];
+  const mediaUrls = Array.isArray(rawCreative.mediaUrls) ? rawCreative.mediaUrls : [];
+  const mediaTypes = Array.isArray(rawCreative.mediaTypes) ? rawCreative.mediaTypes : [];
+  const mediaMeta = Array.isArray(rawCreative.mediaMeta) ? rawCreative.mediaMeta : [];
   const media = mediaMeta.length > 0
     ? mediaMeta
       .map((entry, index) => {
@@ -583,7 +648,7 @@ function mapCreativeSubmission(raw: RawDeal): CreativeSubmission[] {
         );
 
         return {
-          id: `${raw.creative!.id}-${index}`,
+          id: `${rawCreative.id}-${index}`,
           type: normalized.type,
           url,
           name: normalized.name,
@@ -598,7 +663,7 @@ function mapCreativeSubmission(raw: RawDeal): CreativeSubmission[] {
       const url = normalizeCreativeMediaUrl(rawUrl);
       const normalized = normalizeCreativeMediaType(mediaTypes[index], url, index);
       return {
-        id: `${raw.creative!.id}-${index}`,
+        id: `${rawCreative.id}-${index}`,
         type: normalized.type,
         url,
         name: normalized.name,
@@ -607,13 +672,13 @@ function mapCreativeSubmission(raw: RawDeal): CreativeSubmission[] {
 
   return [
     {
-      id: raw.creative.id,
-      submittedAt: formatDateTimeLabel(raw.creative.submittedAt || raw.creative.updatedAt) || "Unknown time",
-      text: raw.creative.text || "",
+      id: rawCreative.id,
+      submittedAt: formatDateTimeLabel(rawCreative.submittedAt || rawCreative.updatedAt) || "Unknown time",
+      text: rawCreative.text || "",
       mediaUrl: media[0]?.url || normalizeCreativeMediaUrl(mediaUrls[0] || ""),
       media,
-      inlineButtons: parseCreativeButtons(raw.creative.buttons),
-      feedback: raw.creative.feedback || undefined,
+      inlineButtons: parseCreativeButtons(rawCreative.buttons),
+      feedback: rawCreative.feedback || undefined,
       status,
     },
   ];
@@ -699,9 +764,12 @@ function mapDealChat(
 
 function mapDeal(raw: RawDeal): Deal {
   const history = parseStatusHistory(raw.statusHistory);
-  const backendStatus = (raw.workflowStatus || raw.status) as BackendDealStatus;
-  const primaryCategory = raw.channel.categories[0];
-  const advertiserName = raw.advertiser.firstName || raw.advertiser.username || "Advertiser";
+  const backendStatus = normalizeBackendDealStatus(raw.workflowStatus || raw.status, raw.status);
+  const categories = Array.isArray(raw.channel.categories) ? raw.channel.categories : [];
+  const primaryCategory = categories[0];
+  const advertiserName = raw.isPublisher
+    ? "Advertiser"
+    : (raw.advertiser.firstName || raw.advertiser.username || "Advertiser");
 
   return {
     id: raw.id,
@@ -729,12 +797,116 @@ function mapDeal(raw: RawDeal): Deal {
     isPublisher: raw.isPublisher,
     statusHistory: history,
     milestones: buildMilestones(backendStatus, history),
-    creativeSubmissions: mapCreativeSubmission(raw),
+    creativeSubmissions: mapCreativeSubmission(raw.creative),
     postingPlan: mapPostingPlan(raw.postingPlan),
     availableActions: mapDealActions(raw.availableActions),
     deadlines: mapDealDeadlines(raw.deadlines),
     dealChat: mapDealChat(raw.dealChat, backendStatus),
     openDealChatUrl: typeof raw.openDealChatUrl === "string" ? raw.openDealChatUrl : null,
+  };
+}
+
+function mapDealCreativeData(raw: RawDealCreativeResponse): DealCreativeData {
+  const backendStatus = normalizeBackendDealStatus(raw.workflowStatus || raw.status);
+
+  return {
+    backendStatus,
+    status: toUiDealStatus(backendStatus),
+    creativeSubmissions: mapCreativeSubmission(raw.creative),
+    availableActions: mapDealActions(raw.availableActions),
+  };
+}
+
+function mapFinanceWallet(raw: unknown): DealFinanceWallet | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  const candidate = raw as {
+    id?: unknown;
+    address?: unknown;
+    contractAddress?: unknown;
+    isDeployed?: unknown;
+    cachedBalance?: unknown;
+  };
+
+  if (typeof candidate.id !== "string") {
+    return null;
+  }
+
+  return {
+    id: candidate.id,
+    address: typeof candidate.address === "string" ? candidate.address : null,
+    contractAddress: typeof candidate.contractAddress === "string" ? candidate.contractAddress : null,
+    isDeployed: Boolean(candidate.isDeployed),
+    cachedBalance: typeof candidate.cachedBalance === "string" ? candidate.cachedBalance : null,
+  };
+}
+
+function mapDealFinanceData(raw: RawDealFinanceResponse): DealFinanceData {
+  const backendStatus = normalizeBackendDealStatus(raw.workflowStatus || raw.status);
+  const finance = raw.finance && typeof raw.finance === "object" ? raw.finance : null;
+
+  return {
+    backendStatus,
+    status: toUiDealStatus(backendStatus),
+    agreedPrice: parseAmount(finance?.agreedPrice),
+    currency: typeof finance?.currency === "string" && finance.currency.trim() ? finance.currency : DEFAULT_CURRENCY,
+    platformFeeAmount: parseAmount(finance?.platformFeeAmount),
+    publisherAmount: parseAmount(finance?.publisherAmount),
+    escrowStatus: finance?.escrowStatus,
+    escrowWallet: mapFinanceWallet(finance?.escrowWallet),
+    availableActions: mapDealActions(raw.availableActions),
+  };
+}
+
+function mapDealActivityData(raw: RawDealActivityResponse): DealActivityData {
+  const backendStatus = normalizeBackendDealStatus(raw.workflowStatus || raw.status);
+  const items: DealActivityItem[] = Array.isArray(raw.activity)
+    ? raw.activity
+      .map((entry, index) => {
+        if (!entry || typeof entry !== "object") {
+          return null;
+        }
+
+        const typeRaw = typeof entry.type === "string" ? entry.type.toLowerCase() : "";
+        const type: DealActivityItem["type"] =
+          typeRaw === "status" || typeRaw === "creative" || typeRaw === "plan" || typeRaw === "system"
+            ? typeRaw
+            : "system";
+        const timestamp = typeof entry.timestamp === "string" && Number.isFinite(Date.parse(entry.timestamp))
+          ? entry.timestamp
+          : null;
+        if (!timestamp) {
+          return null;
+        }
+
+        const id = typeof entry.id === "string" && entry.id.trim() ? entry.id : `activity-${index}-${timestamp}`;
+        const actor = typeof entry.actor === "string" && entry.actor.trim() ? entry.actor : "SYSTEM";
+        const title = typeof entry.title === "string" && entry.title.trim() ? entry.title : "Activity";
+        const detail = typeof entry.detail === "string" ? entry.detail : "";
+
+        return {
+          id,
+          timestamp,
+          actor,
+          type,
+          title,
+          detail,
+        };
+      })
+      .filter((entry): entry is DealActivityItem => entry !== null)
+      .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))
+    : [];
+
+  return {
+    backendStatus,
+    status: toUiDealStatus(backendStatus),
+    items,
+    disputeSummary: {
+      total: typeof raw.disputeSummary?.total === "number" ? raw.disputeSummary.total : 0,
+      active: typeof raw.disputeSummary?.active === "number" ? raw.disputeSummary.active : 0,
+    },
   };
 }
 
@@ -809,6 +981,36 @@ export async function getDealById(dealId: string): Promise<Deal | null> {
   }) as RawDealResponse;
 
   return response.deal ? mapDeal(response.deal) : null;
+}
+
+export async function getDealCreative(dealId: string): Promise<DealCreativeData> {
+  const response = await request(OpenAPI, {
+    method: "GET",
+    url: "/api/deals/{id}/creative",
+    path: { id: dealId },
+  }) as RawDealCreativeResponse;
+
+  return mapDealCreativeData(response);
+}
+
+export async function getDealFinance(dealId: string): Promise<DealFinanceData> {
+  const response = await request(OpenAPI, {
+    method: "GET",
+    url: "/api/deals/{id}/finance",
+    path: { id: dealId },
+  }) as RawDealFinanceResponse;
+
+  return mapDealFinanceData(response);
+}
+
+export async function getDealActivity(dealId: string): Promise<DealActivityData> {
+  const response = await request(OpenAPI, {
+    method: "GET",
+    url: "/api/deals/{id}/activity",
+    path: { id: dealId },
+  }) as RawDealActivityResponse;
+
+  return mapDealActivityData(response);
 }
 
 export async function openDealChat(dealId: string): Promise<{

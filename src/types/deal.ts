@@ -190,6 +190,54 @@ export interface Deal {
   openDealChatUrl?: string | null;
 }
 
+export interface DealCreativeData {
+  backendStatus: BackendDealStatus;
+  status: DealStatus;
+  creativeSubmissions: CreativeSubmission[];
+  availableActions: DealAvailableActions;
+}
+
+export interface DealFinanceWallet {
+  id: string;
+  address: string | null;
+  contractAddress: string | null;
+  isDeployed: boolean;
+  cachedBalance: string | null;
+}
+
+export interface DealFinanceData {
+  backendStatus: BackendDealStatus;
+  status: DealStatus;
+  agreedPrice: number;
+  currency: string;
+  platformFeeAmount: number;
+  publisherAmount: number;
+  escrowStatus?: DealEscrowStatus;
+  escrowWallet?: DealFinanceWallet | null;
+  availableActions: DealAvailableActions;
+}
+
+export type DealActivityType = "status" | "creative" | "plan" | "system";
+
+export interface DealActivityItem {
+  id: string;
+  timestamp: string;
+  actor: string;
+  type: DealActivityType;
+  title: string;
+  detail: string;
+}
+
+export interface DealActivityData {
+  backendStatus: BackendDealStatus;
+  status: DealStatus;
+  items: DealActivityItem[];
+  disputeSummary: {
+    total: number;
+    active: number;
+  };
+}
+
 export const DEAL_STATUS_CONFIG: Record<DealStatus, { label: string; emoji: string; badgeVariant: StatusBadgeVariant }> = {
   created:              { label: "Created",            emoji: "🆕", badgeVariant: "muted" },
   negotiating:          { label: "Negotiating",        emoji: "💬", badgeVariant: "warning" },

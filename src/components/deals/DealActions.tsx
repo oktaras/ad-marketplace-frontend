@@ -67,18 +67,20 @@ function getActions(params: {
   role: UserRole | null;
   onAcceptTerms?: (dealId: string) => void;
   acceptTermsLoading: boolean;
+  chatOnly: boolean;
 }): DealAction[] {
   const {
     deal,
     role,
     onAcceptTerms,
     acceptTermsLoading,
+    chatOnly,
   } = params;
 
   const actions: DealAction[] = [];
   const availableActions = deal.availableActions;
 
-  if (role === "publisher" && availableActions?.acceptTerms && onAcceptTerms) {
+  if (!chatOnly && role === "publisher" && availableActions?.acceptTerms && onAcceptTerms) {
     actions.push({
       label: "Accept Terms",
       icon: <CheckCircle2 className="w-4 h-4" />,
@@ -149,6 +151,7 @@ interface DealActionsProps {
   onCancelDeal?: (dealId: string) => void;
   acceptTermsLoading?: boolean;
   cancelDealLoading?: boolean;
+  chatOnly?: boolean;
 }
 
 export function DealActions({
@@ -158,6 +161,7 @@ export function DealActions({
   onCancelDeal,
   acceptTermsLoading = false,
   cancelDealLoading = false,
+  chatOnly = false,
 }: DealActionsProps) {
   const confirmWithPopup = useTelegramPopupConfirm();
   const actions = getActions({
@@ -165,6 +169,7 @@ export function DealActions({
     role,
     onAcceptTerms,
     acceptTermsLoading,
+    chatOnly,
   });
   const cancelConfirmationDescription = env.dealChatDeleteTopicsOnClose
     ? "This action cannot be undone. Both parties will be notified of the cancellation and any held funds will be refunded. Deal-related chat topics will be deleted and message history will be lost."
@@ -220,7 +225,7 @@ export function DealActions({
       )}
 
       {/* Cancel deal button */}
-      {deal.availableActions?.cancelDeal && !isTerminalDeal(deal) && (
+      {!chatOnly && deal.availableActions?.cancelDeal && !isTerminalDeal(deal) && (
         <Button
           variant="ghost"
           className="w-full text-destructive hover:text-destructive"
