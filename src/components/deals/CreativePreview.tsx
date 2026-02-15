@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CreativeSubmission } from "@/types/deal";
 import { Text } from "@telegram-tools/ui-kit";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { MessageSquare, RotateCcw, ThumbsUp, Video, Link2, ExternalLink } from "lucide-react";
-import { http } from "@/shared/api/http";
 
 interface CreativePreviewProps {
   submission: CreativeSubmission;
@@ -21,98 +20,6 @@ const statusConfig = {
   revision_requested: { label: "🔄 Revision", variant: "warning" as const },
   pending: { label: "⏳ Pending", variant: "info" as const },
 };
-
-function isProtectedMediaUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url, window.location.origin);
-    return parsed.pathname.startsWith("/api/media/s3/");
-  } catch {
-    return false;
-  }
-}
-
-function useAuthorizedMediaUrl(sourceUrl: string): { url: string | null; loading: boolean } {
-  const [url, setUrl] = useState<string | null>(sourceUrl || null);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!sourceUrl) {
-      setUrl(null);
-      setLoading(false);
-      return;
-    }
-
-    if (!isProtectedMediaUrl(sourceUrl)) {
-      setUrl(sourceUrl);
-      setLoading(false);
-      return;
-    }
-
-    let isCancelled = false;
-    let objectUrl: string | null = null;
-    setLoading(true);
-    setUrl(null);
-
-    void (async () => {
-      try {
-        const response = await http.get<ArrayBuffer>(sourceUrl, {
-          responseType: "arraybuffer",
-          headers: {
-            Accept: "image/*,*/*",
-          },
-        });
-
-        const responseTypeHeader = response.headers["content-type"];
-        const contentType = typeof responseTypeHeader === "string" ? responseTypeHeader : "application/octet-stream";
-        const blob = new Blob([response.data], { type: contentType });
-        objectUrl = URL.createObjectURL(blob);
-
-        if (isCancelled) {
-          URL.revokeObjectURL(objectUrl);
-          return;
-        }
-
-        setUrl(objectUrl);
-      } catch {
-        if (!isCancelled) {
-          setUrl(null);
-        }
-      } finally {
-        if (!isCancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      isCancelled = true;
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [sourceUrl]);
-
-  return { url, loading };
-}
-
-function CreativeMediaThumb({ entry }: { entry: NonNullable<CreativeSubmission["media"]>[number] }) {
-  const { url, loading } = useAuthorizedMediaUrl(entry.url);
-
-  if (entry.type !== "image") {
-    return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-secondary gap-1">
-        <Video className="w-6 h-6 text-muted-foreground" />
-        <Text type="caption2" color="secondary" className="text-center px-1 truncate w-full">{entry.name}</Text>
-      </div>
-    );
-  }
-
-  if (loading || !url) {
-    return <div className="w-full h-full bg-secondary animate-pulse" />;
-  }
-
-  return <img src={url} alt={entry.name} className="w-full h-full object-cover" />;
-}
 
 function renderMarkdown(text: string) {
   const parts: React.ReactNode[] = [];
@@ -175,7 +82,14 @@ export function CreativePreview({
         <div className="flex gap-2 flex-wrap">
           {media.map((entry) => (
             <div key={entry.id} className="w-24 h-24 rounded-lg overflow-hidden border border-border bg-card">
-              <CreativeMediaThumb entry={entry} />
+              {entry.type === "image" ? (
+                <img src={entry.url} alt={entry.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-secondary gap-1">
+                  <Video className="w-6 h-6 text-muted-foreground" />
+                  <Text type="caption2" color="secondary" className="text-center px-1 truncate w-full">{entry.name}</Text>
+                </div>
+              )}
             </div>
           ))}
         </div>
