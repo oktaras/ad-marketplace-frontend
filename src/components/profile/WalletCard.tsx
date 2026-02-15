@@ -3,7 +3,7 @@ import { Text } from "@telegram-tools/ui-kit";
 import { Button } from "@/components/ui/button";
 import { AppSheet } from "@/components/common/AppSheet";
 import { ChevronRight, Copy, Check, Unlink, Wallet, Loader2 } from "lucide-react";
-import { useTonConnectUI } from "@tonconnect/ui-react";
+import { CHAIN, toUserFriendlyAddress, useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 import { AuthService, DealsService, UsersService } from "@/shared/api/generated";
@@ -13,6 +13,7 @@ import { inAppToasts } from "@/shared/notifications/in-app";
 import { WALLET_NETWORK_BADGE } from "@/shared/notifications/status-maps";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useTelegramPopupConfirm } from "@/shared/lib/telegram-popup-confirm";
+import { env } from "@/app/config/env";
 
 type NetworkKind = "mainnet" | "testnet" | "unknown";
 
@@ -26,13 +27,28 @@ function isRawTonAddress(address: string): boolean {
   return /^-?\d+:[0-9a-fA-F]{64}$/.test(address.trim());
 }
 
-function formatAddressForUi(address: string | null | undefined): string | null {
+function formatAddressForUi(
+  address: string | null | undefined,
+  tonNetwork: "mainnet" | "testnet",
+): string | null {
   if (!address) {
     return null;
   }
 
   const trimmed = address.trim();
-  return trimmed || null;
+  if (!trimmed) {
+    return null;
+  }
+
+  if (!isRawTonAddress(trimmed)) {
+    return trimmed;
+  }
+
+  try {
+    return toUserFriendlyAddress(trimmed, tonNetwork === "testnet");
+  } catch {
+    return trimmed;
+  }
 }
 
 function toShortAddress(address: string | null | undefined): string {
@@ -113,9 +129,14 @@ export function WalletCard() {
   const linkedWalletAddress = useAuthStore((state) => state.user?.walletAddress ?? null);
   const updateUser = useAuthStore((state) => state.updateUser);
   const [tonConnectUI] = useTonConnectUI();
+  const connectedWallet = useTonWallet();
+  const connectedWalletChain = connectedWallet?.account?.chain ?? null;
 
   const hasLinkedWallet = Boolean(linkedWalletAddress);
-  const displayAddress = useMemo(() => formatAddressForUi(linkedWalletAddress), [linkedWalletAddress]);
+  const displayAddress = useMemo(
+    () => formatAddressForUi(linkedWalletAddress, env.tonNetwork),
+    [linkedWalletAddress],
+  );
   const shortAddress = toShortAddress(displayAddress);
 
   const awaitingPaymentQuery = useQuery({
@@ -166,8 +187,18 @@ export function WalletCard() {
   }, [awaitingPaymentSummary]);
 
   const networkKind: NetworkKind = useMemo(
-    () => inferNetworkFromAddress(linkedWalletAddress),
-    [linkedWalletAddress],
+    () => {
+      if (connectedWalletChain === CHAIN.TESTNET) {
+        return "testnet";
+      }
+
+      if (connectedWalletChain === CHAIN.MAINNET) {
+        return "mainnet";
+      }
+
+      return inferNetworkFromAddress(displayAddress || linkedWalletAddress);
+    },
+    [connectedWalletChain, displayAddress, linkedWalletAddress],
   );
 
   const networkLabel = networkKind === "testnet"
@@ -175,9 +206,11 @@ export function WalletCard() {
     : networkKind === "mainnet"
       ? "TON Mainnet"
       : "Unknown Network";
-  const networkHint = linkedWalletAddress
-    ? "Detected from linked wallet address"
-    : "Link wallet to detect network";
+  const networkHint = connectedWalletChain
+    ? "Detected from connected wallet"
+    : linkedWalletAddress
+      ? "Detected from linked wallet address"
+      : "Link wallet to detect network";
 
   const networkBadge = WALLET_NETWORK_BADGE[networkKind];
 
@@ -252,6 +285,12 @@ export function WalletCard() {
     },
     onSuccess: async () => {
       try {
+        await tonConnectUI.disconnect();
+      } catch {
+        // Best-effort: backend unlink already succeeded.
+      }
+
+      try {
         await syncWalletAddressFromProfile();
       } catch {
         // Keep UI moving even if profile refresh fails after successful unlink.
@@ -275,6 +314,16 @@ export function WalletCard() {
         await new Promise((resolve) => {
           window.setTimeout(resolve, 420);
         });
+      }
+
+      const connectedAddress = tonConnectUI.account?.address?.trim();
+      if (tonConnectUI.connected && connectedAddress) {
+        if (linkedWalletAddress && linkedWalletAddress.trim().toLowerCase() === connectedAddress.toLowerCase()) {
+          return;
+        }
+
+        linkWalletMutation.mutate(connectedAddress);
+        return;
       }
 
       const connectedWallet = await tonConnectUI.connectWallet();

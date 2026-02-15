@@ -18,7 +18,10 @@ export function AuthBootstrapProvider({ children }: Props) {
   const missingInitData = isReady && !resolvedInitData;
 
   useEffect(() => {
-    configureApiRuntime(() => useAuthStore.getState().token);
+    configureApiRuntime(
+      () => useAuthStore.getState().token,
+      () => resolvedInitData || null,
+    );
 
     if (!isReady) {
       return;

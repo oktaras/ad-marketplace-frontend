@@ -3,6 +3,7 @@ import { z } from 'zod';
 const EnvSchema = z.object({
   VITE_API_URL: z.string().min(1).optional(),
   VITE_TON_CONNECT_MANIFEST_URL: z.string().min(1).optional(),
+  VITE_TON_NETWORK: z.enum(['mainnet', 'testnet']).optional(),
   VITE_FORCE_THEME: z.enum(['light', 'dark']).optional(),
   VITE_ENABLE_ANALYTICS: z.string().optional(),
   VITE_FEATURE_CHANNEL_ANALYTICS: z.string().optional(),
@@ -133,6 +134,7 @@ const defaultCurrency = resolveDefaultCurrency(parsed.data.VITE_DEFAULT_CURRENCY
 export const env = {
   apiUrl: parsed.data.VITE_API_URL ?? '/api',
   tonConnectManifestUrl: resolveManifestUrl(parsed.data.VITE_TON_CONNECT_MANIFEST_URL, parsed.data.VITE_API_URL),
+  tonNetwork: parsed.data.VITE_TON_NETWORK ?? 'testnet',
   supportedCurrencies,
   defaultCurrency,
   forceTheme: parsed.data.VITE_FORCE_THEME,

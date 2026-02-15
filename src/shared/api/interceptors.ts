@@ -1,7 +1,7 @@
 import type { AxiosInstance } from 'axios';
 import { AxiosError } from 'axios';
 import { useAuthStore } from '@/features/auth/model/auth.store';
-import { getTelegramInitData } from '@/shared/lib/telegram';
+import { getApiInitDataHeader } from '@/shared/api/runtime';
 
 export function setupInterceptors(instance: AxiosInstance): void {
   instance.interceptors.request.use((config) => {
@@ -11,7 +11,7 @@ export function setupInterceptors(instance: AxiosInstance): void {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    const initData = getTelegramInitData();
+    const initData = getApiInitDataHeader();
     if (initData) {
       config.headers['X-Telegram-Init-Data'] = initData;
     }

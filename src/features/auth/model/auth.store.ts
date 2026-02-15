@@ -160,7 +160,7 @@ export const useAuthStore = create<AuthState>()(
 
         try {
           const response = await http.post<{ token?: string; user?: unknown }>(
-            '/api/auth/telegram',
+            '/auth/telegram',
             {},
             {
               headers: {
