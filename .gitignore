@@ -34,7 +34,8 @@ Thumbs.db
 .env.*.local
 
 # Generated
-openapi/
+openapi/*
+!openapi/openapi.json
 src/shared/api/generated/
 
 # TypeScript
