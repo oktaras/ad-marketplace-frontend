@@ -14,8 +14,8 @@ const roleOptions: { value: UserRole; title: string; description: string; icon: 
   },
   {
     value: "publisher",
-    title: "I'm a Channel Owner",
-    description: "Monetize your Telegram channel by publishing sponsored content.",
+    title: "I'm a Publisher",
+    description: "Monetize your Telegram channels by publishing sponsored content.",
     icon: Radio,
   },
 ];
@@ -49,9 +49,9 @@ export default function Onboarding() {
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="text-5xl mb-4">🚀</div>
-          <Text type="largeTitle" weight="bold">TG Ads Market</Text>
+          <Text type="largeTitle" weight="bold" align="center">Ad Marketplace</Text>
           <Text type="body" color="secondary" align="center">
-            The marketplace for Telegram channel advertising. Choose how you'd like to start.
+            The marketplace for advertising through Telegram channels. Choose how you'd like to start*.
           </Text>
         </div>
 
@@ -72,7 +72,7 @@ export default function Onboarding() {
               >
                 <div className="flex items-start gap-3">
                   <div className={cn(
-                    "rounded-lg p-2 mt-0.5",
+                    "rounded-lg p-2 self-center",
                     isSelected ? "bg-primary/10" : "bg-secondary"
                   )}>
                     <opt.icon className={cn("h-5 w-5", isSelected ? "text-primary" : "text-muted-foreground")} />
@@ -82,7 +82,7 @@ export default function Onboarding() {
                     <Text type="footnote" color="secondary">{opt.description}</Text>
                   </div>
                   <div className={cn(
-                    "w-5 h-5 rounded-full border-2 mt-1 flex items-center justify-center flex-shrink-0",
+                    "w-5 h-5 rounded-full border-2 self-center flex items-center justify-center flex-shrink-0",
                     isSelected ? "border-primary" : "border-muted-foreground/40"
                   )}>
                     {isSelected && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
@@ -95,7 +95,7 @@ export default function Onboarding() {
 
         {/* Note */}
         <Text type="caption1" color="tertiary" align="center">
-          You can switch roles anytime from the Home screen or Profile.
+          *You can switch roles anytime from the Profile screen.
         </Text>
 
         {/* CTA */}
