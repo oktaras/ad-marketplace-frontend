@@ -30,11 +30,11 @@ type BriefSort = "budget_desc" | "budget_asc" | "deadline_asc" | "subs_desc" | "
 type BriefRangeKey = "budget" | "minSubscribers" | "applications";
 
 const BRIEF_SORT_OPTIONS: { value: BriefSort; label: string }[] = [
-  { value: "created_desc", label: "Newest first" },
+  { value: "created_desc", label: "Created: New → Old" },
   { value: "budget_desc", label: "Budget: High → Low" },
   { value: "budget_asc", label: "Budget: Low → High" },
-  { value: "deadline_asc", label: "Deadline: Soonest" },
-  { value: "subs_desc", label: "Min Subs: Highest" },
+  { value: "deadline_asc", label: "Deadline: Soon → Late" },
+  { value: "subs_desc", label: "Min Subs: High → Low" },
 ];
 
 const BRIEF_RANGE_OPTIONS = [

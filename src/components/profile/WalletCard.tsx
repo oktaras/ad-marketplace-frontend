@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Text } from "@telegram-tools/ui-kit";
 import { Button } from "@/components/ui/button";
 import { AppSheet } from "@/components/common/AppSheet";
@@ -14,6 +14,7 @@ import { WALLET_NETWORK_BADGE } from "@/shared/notifications/status-maps";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useTelegramPopupConfirm } from "@/shared/lib/telegram-popup-confirm";
 import { env } from "@/app/config/env";
+import { CardLoadingOverlay } from "@/components/profile/CardLoadingOverlay";
 
 type NetworkKind = "mainnet" | "testnet" | "unknown";
 
@@ -122,8 +123,8 @@ function buildAwaitingPaymentSummary(rawDeals: Array<Record<string, unknown>> | 
 export function WalletCard() {
   const [showDetail, setShowDetail] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
+  const [isHydratingProfile, setIsHydratingProfile] = useState(false);
   const confirmWithPopup = useTelegramPopupConfirm();
-  const hasHydratedProfileRef = useRef(false);
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const linkedWalletAddress = useAuthStore((state) => state.user?.walletAddress ?? null);
@@ -221,9 +222,15 @@ export function WalletCard() {
 
   const syncWalletAddressFromProfile = useCallback(async (): Promise<string | null> => {
     const profile = await UsersService.getApiUsersMe();
-    const walletAddress = typeof profile.user?.walletAddress === "string"
-      ? profile.user.walletAddress
-      : null;
+    const profileUser = (profile as { user?: Record<string, unknown> }).user;
+    const nestedWallet = profileUser?.wallet as { address?: string } | undefined;
+    const candidates = [
+      typeof profileUser?.walletAddress === "string" ? profileUser.walletAddress : null,
+      typeof nestedWallet?.address === "string" ? nestedWallet.address : null,
+    ];
+    const walletAddress = candidates
+      .map((candidate) => candidate?.trim() ?? "")
+      .find((candidate) => candidate.length > 0) ?? null;
 
     updateUser({ walletAddress });
     return walletAddress;
@@ -231,18 +238,26 @@ export function WalletCard() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      hasHydratedProfileRef.current = false;
+      setIsHydratingProfile(false);
       return;
     }
 
-    if (hasHydratedProfileRef.current) {
-      return;
-    }
+    let isCancelled = false;
+    setIsHydratingProfile(true);
 
-    hasHydratedProfileRef.current = true;
-    void syncWalletAddressFromProfile().catch(() => {
-      // Keep existing state if the initial hydration request fails.
-    });
+    void syncWalletAddressFromProfile()
+      .catch(() => {
+        // Keep existing state if the initial hydration request fails.
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsHydratingProfile(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [isAuthenticated, syncWalletAddressFromProfile]);
 
   const linkWalletMutation = useMutation({
@@ -372,40 +387,45 @@ export function WalletCard() {
 
   return (
     <>
-      {hasLinkedWallet ? (
-        <button
-          onClick={() => setShowDetail(true)}
-          className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-primary/5 to-primary/0 rounded-xl border border-primary/10 hover:from-primary/10 hover:to-primary/5 transition-colors"
-        >
-          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-            <Wallet className="h-5 w-5 text-primary" />
-          </div>
-          <div className="flex-1 text-left min-w-0">
-            <Text type="subheadline1" weight="medium">TON Wallet</Text>
-            <Text type="caption1" color="secondary" className="truncate">
-              {shortAddress} • {walletAppLabel}
-            </Text>
-          </div>
-          <StatusBadge label={networkBadge.label} variant={networkBadge.variant} dot={false} />
-          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-        </button>
-      ) : (
-        <button
-          onClick={() => void handleConnect()}
-          className="w-full flex items-center gap-3 p-4 bg-card rounded-xl border border-border hover:bg-secondary/50 transition-colors"
-        >
-          <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-            <Wallet className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <div className="flex-1 text-left min-w-0">
-            <Text type="subheadline1" weight="medium">Link Current Wallet</Text>
-            <Text type="caption1" color="secondary">
-              Connect and link your TON wallet
-            </Text>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-        </button>
-      )}
+      <div className="relative rounded-xl">
+        {hasLinkedWallet ? (
+          <button
+            onClick={() => setShowDetail(true)}
+            disabled={isHydratingProfile || isBusy}
+            className="w-full flex items-center gap-3 p-4 bg-gradient-to-r from-primary/5 to-primary/0 rounded-xl border border-primary/10 hover:from-primary/10 hover:to-primary/5 transition-colors disabled:cursor-not-allowed"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <Wallet className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <Text type="subheadline1" weight="medium">TON Wallet</Text>
+              <Text type="caption1" color="secondary" className="truncate">
+                {shortAddress} • {walletAppLabel}
+              </Text>
+            </div>
+            <StatusBadge label={networkBadge.label} variant={networkBadge.variant} dot={false} />
+            <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          </button>
+        ) : (
+          <button
+            onClick={() => void handleConnect()}
+            disabled={isHydratingProfile || isBusy}
+            className="w-full flex items-center gap-3 p-4 bg-card rounded-xl border border-border hover:bg-secondary/50 transition-colors disabled:cursor-not-allowed"
+          >
+            <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+              <Wallet className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <Text type="subheadline1" weight="medium">Link Current Wallet</Text>
+              <Text type="caption1" color="secondary">
+                Connect and link your TON wallet
+              </Text>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          </button>
+        )}
+        <CardLoadingOverlay visible={isHydratingProfile} />
+      </div>
 
       <AppSheet open={showDetail} onOpenChange={setShowDetail} title="TON Wallet" icon={<Wallet className="h-5 w-5" />}>
         <div className="space-y-5">

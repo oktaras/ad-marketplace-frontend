@@ -156,6 +156,10 @@ export function ChannelSettingsSheet({ channel, open, onOpenChange }: ChannelSet
   };
 
   const handleSave = () => {
+    if (!hasSettingsChanges || saveSettingsMutation.isPending) {
+      return;
+    }
+
     saveSettingsMutation.mutate();
   };
 
@@ -187,6 +191,12 @@ export function ChannelSettingsSheet({ channel, open, onOpenChange }: ChannelSet
   if (!channel) {
     return null;
   }
+
+  const normalizedCurrentLanguage = (editLanguage || channel.language || "en").toLowerCase();
+  const normalizedInitialLanguage = (channel.language || "en").toLowerCase();
+  const selectedCategory = editCategory || channel.category;
+  const hasSettingsChanges = normalizedCurrentLanguage !== normalizedInitialLanguage
+    || selectedCategory !== channel.category;
 
   return (
     <AppSheet
@@ -291,7 +301,7 @@ variant="outline"
             />
           </div>
 
-          <Button onClick={handleSave} disabled={saveSettingsMutation.isPending} className="w-full">
+          <Button onClick={handleSave} disabled={saveSettingsMutation.isPending || !hasSettingsChanges} className="w-full">
             {saveSettingsMutation.isPending ? "Saving…" : "Save Changes"}
           </Button>
           <Button

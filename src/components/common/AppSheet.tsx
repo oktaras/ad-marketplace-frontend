@@ -192,6 +192,9 @@ export function AppSheet({ open, onOpenChange, title, icon, fullHeight, children
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+        }}
         className={cn(
           "rounded-t-2xl px-0 pb-0 flex flex-col scrollbar-hide",
           fullHeight ? "app-sheet-safe-full" : "max-h-[85vh] app-sheet-safe-max",

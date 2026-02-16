@@ -37,8 +37,8 @@ type ListingSort =
 type ListingRangeKey = "price" | "subscribers" | "views" | "engagementRate";
 
 const LISTING_SORT_OPTIONS: { value: ListingSort; label: string }[] = [
-  { value: "created_desc", label: "Newest first" },
-  { value: "created_asc", label: "Oldest first" },
+  { value: "created_desc", label: "Created: New → Old" },
+  { value: "created_asc", label: "Created: Old → New" },
   { value: "price_desc", label: "Price: High → Low" },
   { value: "price_asc", label: "Price: Low → High" },
   { value: "subscribers_desc", label: "Subscribers: High → Low" },

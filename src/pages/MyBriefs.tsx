@@ -46,17 +46,20 @@ import { useTelegramPopupConfirm } from "@/shared/lib/telegram-popup-confirm";
 import { formatCurrency } from "@/lib/format";
 import { getTelegramChannelAvatarUrl } from "@/shared/lib/channel-avatar";
 import { formatAdFormatTitle, isAdFormatActive } from "@/shared/lib/ad-format";
+import { useSwipeTabNavigation } from "@/hooks/use-touch-gestures";
+import { useTabContentTransition } from "@/hooks/use-tab-content-transition";
 
 type BriefSort = "budget_desc" | "budget_asc" | "deadline_asc" | "subs_desc" | "created_desc";
 type MutableBriefStatus = NonNullable<UpdateMyBriefPayload["status"]>;
 
 const BRIEF_SORT_OPTIONS: { value: BriefSort; label: string }[] = [
-  { value: "created_desc", label: "Newest first" },
+  { value: "created_desc", label: "Created: New → Old" },
   { value: "budget_desc", label: "Budget: High → Low" },
   { value: "budget_asc", label: "Budget: Low → High" },
-  { value: "deadline_asc", label: "Deadline: Soonest" },
-  { value: "subs_desc", label: "Min Subs: Highest" },
+  { value: "deadline_asc", label: "Deadline: Soon → Late" },
+  { value: "subs_desc", label: "Min Subs: High → Low" },
 ];
+const BRIEF_TAB_ORDER = ["active", "closed"] as const;
 
 function getApiErrorMessage(error: unknown): string {
   if (error && typeof error === "object" && "body" in error) {
@@ -518,13 +521,20 @@ export default function MyBriefs() {
     setAcceptPickerState(null);
   };
 
+  const tabSwipeHandlers = useSwipeTabNavigation({
+    tabOrder: BRIEF_TAB_ORDER,
+    activeTab: briefTab,
+    onTabChange: (nextTab) => setBriefTab(nextTab),
+  });
+  const tabTransitionClass = useTabContentTransition(briefTab, BRIEF_TAB_ORDER);
+
   if (role === "publisher") {
     return <Navigate to="/my-channels" replace />;
   }
 
   return (
     <AppLayout>
-      <PageContainer className="py-4 space-y-4">
+      <PageContainer className="py-4 space-y-4" {...tabSwipeHandlers}>
         <StatusTabs
           tabs={[
             { value: "active", label: "Active" },
@@ -533,84 +543,85 @@ export default function MyBriefs() {
           activeTab={briefTab}
           onTabChange={(tab) => setBriefTab(tab as "active" | "closed")}
         />
+        <div className={`space-y-4 ${tabTransitionClass}`}>
+          <div className="flex items-center gap-2 flex-nowrap">
+            <Button
+              variant="outline"
+              onClick={() => setFilterSheetOpen(true)}
+              className="flex-1 min-w-0 whitespace-nowrap"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filters & Sort
+            </Button>
+            <button
+              onClick={() => setCreateBriefOpen(true)}
+              className="shrink-0 h-10 flex items-center gap-1 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium whitespace-nowrap"
+            >
+              <Plus className="h-4 w-4" />
+              Create Brief
+            </button>
+          </div>
 
-        <div className="flex items-center gap-2 flex-nowrap">
-          <Button
-            variant="outline"
-            onClick={() => setFilterSheetOpen(true)}
-            className="flex-1 min-w-0 whitespace-nowrap"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            Filters & Sort
-          </Button>
-          <button
-            onClick={() => setCreateBriefOpen(true)}
-            className="shrink-0 h-10 flex items-center gap-1 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium whitespace-nowrap"
-          >
-            <Plus className="h-4 w-4" />
-            Create Brief
-          </button>
-        </div>
+          <ActiveFilters
+            filters={activeFilterChips}
+            onClearAll={hasActiveFilters ? clearFilters : undefined}
+          />
 
-        <ActiveFilters
-          filters={activeFilterChips}
-          onClearAll={hasActiveFilters ? clearFilters : undefined}
-        />
-
-        <div className="pb-2 space-y-1">
-          <Text type="caption1" color="tertiary">
-            {`${totalBriefs} brief${totalBriefs !== 1 ? "s" : ""}`}
-            {filters.categories.length > 0
-              ? ` in ${filters.categories.length} categor${filters.categories.length === 1 ? "y" : "ies"}`
-              : ""}
-          </Text>
-          {waitingForSearchThreshold && (
-            <Text type="caption2" color="tertiary">
-              Enter at least {SEARCH_MIN_LENGTH} characters to start searching.
-            </Text>
-          )}
-        </div>
-
-        <div className="pb-6 flex flex-col gap-3">
-          {briefsQuery.isError ? (
-            <EmptyState
-              emoji={inAppEmptyStates.myBriefsLoadFailed.emoji}
-              title={inAppEmptyStates.myBriefsLoadFailed.title}
-              description={inAppEmptyStates.myBriefsLoadFailed.description}
-              secondaryAction={{
-                label: inAppEmptyStates.myBriefsLoadFailed.secondaryActionLabel || "Retry",
-                onClick: () => briefsQuery.refetch(),
-              }}
-            />
-          ) : isLoading ? (
+          <div className="pb-2 space-y-1">
             <Text type="caption1" color="tertiary">
-              Loading…
+              {`${totalBriefs} brief${totalBriefs !== 1 ? "s" : ""}`}
+              {filters.categories.length > 0
+                ? ` in ${filters.categories.length} categor${filters.categories.length === 1 ? "y" : "ies"}`
+                : ""}
             </Text>
-          ) : briefs.length > 0 ? (
-            <>
-              {briefs.map((brief) => (
-                <MyBriefCard key={brief.id} brief={brief} onClick={() => setSelectedBrief(brief)} />
-              ))}
-              <div ref={sentinelRef} className="h-10 flex items-center justify-center">
-                {briefsQuery.isFetchingNextPage ? (
-                  <Text type="caption1" color="tertiary">Loading more…</Text>
-                ) : briefsQuery.hasNextPage ? (
-                  <Text type="caption2" color="tertiary">Scroll to load more</Text>
-                ) : (
-                  <Text type="caption2" color="tertiary">No more briefs</Text>
-                )}
-              </div>
-            </>
-          ) : (
-            <EmptyState
-              emoji={briefTab === "active" ? "📋" : "📭"}
-              title={briefTab === "active" ? "No active briefs" : "No closed briefs"}
-              description={briefTab === "active" ? "Create your first brief to start receiving applications." : "Your closed briefs will appear here."}
-              actionLabel={briefTab === "active" ? "Create Brief" : undefined}
-              onAction={briefTab === "active" ? () => setCreateBriefOpen(true) : undefined}
-              secondaryAction={hasActiveFilters ? { label: "Clear Filters", onClick: clearFilters } : undefined}
-            />
-          )}
+            {waitingForSearchThreshold && (
+              <Text type="caption2" color="tertiary">
+                Enter at least {SEARCH_MIN_LENGTH} characters to start searching.
+              </Text>
+            )}
+          </div>
+
+          <div className="pb-6 flex flex-col gap-3">
+            {briefsQuery.isError ? (
+              <EmptyState
+                emoji={inAppEmptyStates.myBriefsLoadFailed.emoji}
+                title={inAppEmptyStates.myBriefsLoadFailed.title}
+                description={inAppEmptyStates.myBriefsLoadFailed.description}
+                secondaryAction={{
+                  label: inAppEmptyStates.myBriefsLoadFailed.secondaryActionLabel || "Retry",
+                  onClick: () => briefsQuery.refetch(),
+                }}
+              />
+            ) : isLoading ? (
+              <Text type="caption1" color="tertiary">
+                Loading…
+              </Text>
+            ) : briefs.length > 0 ? (
+              <>
+                {briefs.map((brief) => (
+                  <MyBriefCard key={brief.id} brief={brief} onClick={() => setSelectedBrief(brief)} />
+                ))}
+                <div ref={sentinelRef} className="h-10 flex items-center justify-center">
+                  {briefsQuery.isFetchingNextPage ? (
+                    <Text type="caption1" color="tertiary">Loading more…</Text>
+                  ) : briefsQuery.hasNextPage ? (
+                    <Text type="caption2" color="tertiary">Scroll to load more</Text>
+                  ) : (
+                    <Text type="caption2" color="tertiary">No more briefs</Text>
+                  )}
+                </div>
+              </>
+            ) : (
+              <EmptyState
+                emoji={briefTab === "active" ? "📋" : "📭"}
+                title={briefTab === "active" ? "No active briefs" : "No closed briefs"}
+                description={briefTab === "active" ? "Create your first brief to start receiving applications." : "Your closed briefs will appear here."}
+                actionLabel={briefTab === "active" ? "Create Brief" : undefined}
+                onAction={briefTab === "active" ? () => setCreateBriefOpen(true) : undefined}
+                secondaryAction={hasActiveFilters ? { label: "Clear Filters", onClick: clearFilters } : undefined}
+              />
+            )}
+          </div>
         </div>
       </PageContainer>
 

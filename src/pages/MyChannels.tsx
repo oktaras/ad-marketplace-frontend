@@ -33,6 +33,8 @@ import {
 } from "@/pages/discovery/utils";
 import { LISTING_STATUS_CONFIG } from "@/shared/constants/marketplace-status";
 import { inAppEmptyStates } from "@/shared/notifications/in-app";
+import { useSwipeTabNavigation } from "@/hooks/use-touch-gestures";
+import { useTabContentTransition } from "@/hooks/use-tab-content-transition";
 
 type PublisherTab = "channels" | "listings";
 type ChannelSort = "subscribers_desc" | "subscribers_asc" | "price_desc" | "price_asc" | "er_desc" | "views_desc";
@@ -48,11 +50,12 @@ const CHANNEL_SORT_OPTIONS: Array<{ value: ChannelSort; label: string }> = [
 ];
 
 const LISTING_SORT_OPTIONS: Array<{ value: ListingSort; label: string }> = [
-  { value: "created_desc", label: "Newest first" },
-  { value: "created_asc", label: "Oldest first" },
+  { value: "created_desc", label: "Created: New → Old" },
+  { value: "created_asc", label: "Created: Old → New" },
   { value: "price_desc", label: "Price: High → Low" },
   { value: "price_asc", label: "Price: Low → High" },
 ];
+const PUBLISHER_TAB_ORDER = ["channels", "listings"] as const;
 
 export default function MyChannels() {
   const { role } = useRole();
@@ -319,13 +322,20 @@ export default function MyChannels() {
     onLoadMore: loadNextListingPage,
   });
 
+  const tabSwipeHandlers = useSwipeTabNavigation({
+    tabOrder: PUBLISHER_TAB_ORDER,
+    activeTab: publisherTab,
+    onTabChange: (nextTab) => setPublisherTab(nextTab),
+  });
+  const tabTransitionClass = useTabContentTransition(publisherTab, PUBLISHER_TAB_ORDER);
+
   if (role === "advertiser") {
     return <Navigate to="/my-briefs" replace />;
   }
 
   return (
     <AppLayout>
-      <PageContainer className="py-4 space-y-4">
+      <PageContainer className="py-4 space-y-4" {...tabSwipeHandlers}>
         <StatusTabs
           tabs={[
             { value: "channels", label: "Channels", count: totalChannels },
@@ -334,175 +344,176 @@ export default function MyChannels() {
           activeTab={publisherTab}
           onTabChange={(tab) => setPublisherTab(tab as PublisherTab)}
         />
+        <div className={`space-y-4 ${tabTransitionClass}`}>
+          {publisherTab === "channels" ? (
+            <>
+              <div className="flex items-center gap-2 flex-nowrap">
+                <button
+                  onClick={() => setChannelFilterSheetOpen(true)}
+                  className="flex-1 min-w-0 flex items-center justify-center gap-2 h-10 rounded-lg border border-border bg-card text-sm font-medium whitespace-nowrap"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filters & Sort
+                </button>
+                <button
+                  onClick={() => setAddChannelOpen(true)}
+                  className="shrink-0 h-10 flex items-center gap-1 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium whitespace-nowrap"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Channel
+                </button>
+              </div>
 
-        {publisherTab === "channels" ? (
-          <>
-            <div className="flex items-center gap-2 flex-nowrap">
-              <button
-                onClick={() => setChannelFilterSheetOpen(true)}
-                className="flex-1 min-w-0 flex items-center justify-center gap-2 h-10 rounded-lg border border-border bg-card text-sm font-medium whitespace-nowrap"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                Filters & Sort
-              </button>
-              <button
-                onClick={() => setAddChannelOpen(true)}
-                className="shrink-0 h-10 flex items-center gap-1 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium whitespace-nowrap"
-              >
-                <Plus className="h-4 w-4" />
-                Add Channel
-              </button>
-            </div>
+              <ActiveFilters
+                filters={channelFilterChips}
+                onClearAll={hasActiveChannelFilters ? clearChannelFilters : undefined}
+              />
 
-            <ActiveFilters
-              filters={channelFilterChips}
-              onClearAll={hasActiveChannelFilters ? clearChannelFilters : undefined}
-            />
-
-            {waitingForChannelSearchThreshold ? (
-              <Text type="caption2" color="tertiary">
-                Enter at least {SEARCH_MIN_LENGTH} characters to start searching.
-              </Text>
-            ) : null}
-
-            <div className="pb-2 space-y-1">
-              <Text type="caption1" color="tertiary">
-                {`${totalChannels} channel${totalChannels !== 1 ? "s" : ""}`}
-                {channelFilters.categories.length > 0
-                  ? ` in ${channelFilters.categories.length} categor${channelFilters.categories.length === 1 ? "y" : "ies"}`
-                  : ""}
-              </Text>
-            </div>
-
-            <div className="pb-6 flex flex-col gap-3">
-              {channelsQuery.isError ? (
-                <EmptyState
-                  emoji={inAppEmptyStates.myChannelsLoadFailed.emoji}
-                  title={inAppEmptyStates.myChannelsLoadFailed.title}
-                  description={inAppEmptyStates.myChannelsLoadFailed.description}
-                  secondaryAction={{
-                    label: inAppEmptyStates.myChannelsLoadFailed.secondaryActionLabel || "Retry",
-                    onClick: () => channelsQuery.refetch(),
-                  }}
-                />
-              ) : channelsLoading ? (
-                <Text type="caption1" color="tertiary">
-                  Loading…
+              {waitingForChannelSearchThreshold ? (
+                <Text type="caption2" color="tertiary">
+                  Enter at least {SEARCH_MIN_LENGTH} characters to start searching.
                 </Text>
-              ) : channels.length > 0 ? (
-                <>
-                  {channels.map((channel) => (
-                    <MyChannelCard key={channel.id} channel={channel} onManage={() => setSelectedChannel(channel)} />
-                  ))}
-                  <div ref={channelsSentinelRef} className="h-10 flex items-center justify-center">
-                    {channelsQuery.isFetchingNextPage ? (
-                      <Text type="caption1" color="tertiary">Loading more…</Text>
-                    ) : channelsQuery.hasNextPage ? (
-                      <Text type="caption2" color="tertiary">Scroll to load more</Text>
-                    ) : (
-                      <Text type="caption2" color="tertiary">No more channels</Text>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <EmptyState
-                  emoji={inAppEmptyStates.myChannelsNoResults.emoji}
-                  title={inAppEmptyStates.myChannelsNoResults.title}
-                  description={inAppEmptyStates.myChannelsNoResults.description}
-                  actionLabel="Add Channel"
-                  onAction={() => setAddChannelOpen(true)}
-                  secondaryAction={
-                    hasActiveChannelFilters
-                      ? { label: inAppEmptyStates.myChannelsNoResults.secondaryActionLabel || "Clear Filters", onClick: clearChannelFilters }
-                      : undefined
-                  }
-                />
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center gap-2 flex-nowrap">
-              <button
-                onClick={() => setListingFilterSheetOpen(true)}
-                className="flex-1 min-w-0 flex items-center justify-center gap-2 h-10 rounded-lg border border-border bg-card text-sm font-medium whitespace-nowrap"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                Filters & Sort
-              </button>
-              <button
-                onClick={() => setCreateListingOpen(true)}
-                className="shrink-0 h-10 flex items-center gap-1 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium whitespace-nowrap"
-              >
-                <Plus className="h-4 w-4" />
-                New Listing
-              </button>
-            </div>
+              ) : null}
 
-            <ActiveFilters
-              filters={listingFilterChips}
-              onClearAll={hasActiveListingFilters ? clearListingFilters : undefined}
-            />
-
-            {waitingForListingSearchThreshold ? (
-              <Text type="caption2" color="tertiary">
-                Enter at least {SEARCH_MIN_LENGTH} characters to start searching.
-              </Text>
-            ) : null}
-
-            <div className="pb-2">
-              <Text type="caption1" color="tertiary">
-                {`${totalListings} listing${totalListings !== 1 ? "s" : ""}`}
-              </Text>
-            </div>
-
-            <div className="pb-6 flex flex-col gap-3">
-              {listingsQuery.isError ? (
-                <EmptyState
-                  emoji={inAppEmptyStates.myListingsLoadFailed.emoji}
-                  title={inAppEmptyStates.myListingsLoadFailed.title}
-                  description={inAppEmptyStates.myListingsLoadFailed.description}
-                  secondaryAction={{
-                    label: inAppEmptyStates.myListingsLoadFailed.secondaryActionLabel || "Retry",
-                    onClick: () => listingsQuery.refetch(),
-                  }}
-                />
-              ) : listingsLoading ? (
+              <div className="pb-2 space-y-1">
                 <Text type="caption1" color="tertiary">
-                  Loading…
+                  {`${totalChannels} channel${totalChannels !== 1 ? "s" : ""}`}
+                  {channelFilters.categories.length > 0
+                    ? ` in ${channelFilters.categories.length} categor${channelFilters.categories.length === 1 ? "y" : "ies"}`
+                    : ""}
                 </Text>
-              ) : listings.length > 0 ? (
-                <>
-                  {listings.map((listing) => (
-                    <ListingCard key={listing.id} listing={listing} onClick={() => setSelectedListing(listing)} />
-                  ))}
-                  <div ref={listingsSentinelRef} className="h-10 flex items-center justify-center">
-                    {listingsQuery.isFetchingNextPage ? (
-                      <Text type="caption1" color="tertiary">Loading more…</Text>
-                    ) : listingsQuery.hasNextPage ? (
-                      <Text type="caption2" color="tertiary">Scroll to load more</Text>
-                    ) : (
-                      <Text type="caption2" color="tertiary">No more listings</Text>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <EmptyState
-                  emoji={inAppEmptyStates.myListingsNoResults.emoji}
-                  title={inAppEmptyStates.myListingsNoResults.title}
-                  description={inAppEmptyStates.myListingsNoResults.description}
-                  actionLabel="Create Listing"
-                  onAction={() => setCreateListingOpen(true)}
-                  secondaryAction={
-                    hasActiveListingFilters
-                      ? { label: inAppEmptyStates.myListingsNoResults.secondaryActionLabel || "Clear Filters", onClick: clearListingFilters }
-                      : undefined
-                  }
-                />
-              )}
-            </div>
-          </>
-        )}
+              </div>
+
+              <div className="pb-6 flex flex-col gap-3">
+                {channelsQuery.isError ? (
+                  <EmptyState
+                    emoji={inAppEmptyStates.myChannelsLoadFailed.emoji}
+                    title={inAppEmptyStates.myChannelsLoadFailed.title}
+                    description={inAppEmptyStates.myChannelsLoadFailed.description}
+                    secondaryAction={{
+                      label: inAppEmptyStates.myChannelsLoadFailed.secondaryActionLabel || "Retry",
+                      onClick: () => channelsQuery.refetch(),
+                    }}
+                  />
+                ) : channelsLoading ? (
+                  <Text type="caption1" color="tertiary">
+                    Loading…
+                  </Text>
+                ) : channels.length > 0 ? (
+                  <>
+                    {channels.map((channel) => (
+                      <MyChannelCard key={channel.id} channel={channel} onManage={() => setSelectedChannel(channel)} />
+                    ))}
+                    <div ref={channelsSentinelRef} className="h-10 flex items-center justify-center">
+                      {channelsQuery.isFetchingNextPage ? (
+                        <Text type="caption1" color="tertiary">Loading more…</Text>
+                      ) : channelsQuery.hasNextPage ? (
+                        <Text type="caption2" color="tertiary">Scroll to load more</Text>
+                      ) : (
+                        <Text type="caption2" color="tertiary">No more channels</Text>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <EmptyState
+                    emoji={inAppEmptyStates.myChannelsNoResults.emoji}
+                    title={inAppEmptyStates.myChannelsNoResults.title}
+                    description={inAppEmptyStates.myChannelsNoResults.description}
+                    actionLabel="Add Channel"
+                    onAction={() => setAddChannelOpen(true)}
+                    secondaryAction={
+                      hasActiveChannelFilters
+                        ? { label: inAppEmptyStates.myChannelsNoResults.secondaryActionLabel || "Clear Filters", onClick: clearChannelFilters }
+                        : undefined
+                    }
+                  />
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 flex-nowrap">
+                <button
+                  onClick={() => setListingFilterSheetOpen(true)}
+                  className="flex-1 min-w-0 flex items-center justify-center gap-2 h-10 rounded-lg border border-border bg-card text-sm font-medium whitespace-nowrap"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filters & Sort
+                </button>
+                <button
+                  onClick={() => setCreateListingOpen(true)}
+                  className="shrink-0 h-10 flex items-center gap-1 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium whitespace-nowrap"
+                >
+                  <Plus className="h-4 w-4" />
+                  New Listing
+                </button>
+              </div>
+
+              <ActiveFilters
+                filters={listingFilterChips}
+                onClearAll={hasActiveListingFilters ? clearListingFilters : undefined}
+              />
+
+              {waitingForListingSearchThreshold ? (
+                <Text type="caption2" color="tertiary">
+                  Enter at least {SEARCH_MIN_LENGTH} characters to start searching.
+                </Text>
+              ) : null}
+
+              <div className="pb-2">
+                <Text type="caption1" color="tertiary">
+                  {`${totalListings} listing${totalListings !== 1 ? "s" : ""}`}
+                </Text>
+              </div>
+
+              <div className="pb-6 flex flex-col gap-3">
+                {listingsQuery.isError ? (
+                  <EmptyState
+                    emoji={inAppEmptyStates.myListingsLoadFailed.emoji}
+                    title={inAppEmptyStates.myListingsLoadFailed.title}
+                    description={inAppEmptyStates.myListingsLoadFailed.description}
+                    secondaryAction={{
+                      label: inAppEmptyStates.myListingsLoadFailed.secondaryActionLabel || "Retry",
+                      onClick: () => listingsQuery.refetch(),
+                    }}
+                  />
+                ) : listingsLoading ? (
+                  <Text type="caption1" color="tertiary">
+                    Loading…
+                  </Text>
+                ) : listings.length > 0 ? (
+                  <>
+                    {listings.map((listing) => (
+                      <ListingCard key={listing.id} listing={listing} onClick={() => setSelectedListing(listing)} />
+                    ))}
+                    <div ref={listingsSentinelRef} className="h-10 flex items-center justify-center">
+                      {listingsQuery.isFetchingNextPage ? (
+                        <Text type="caption1" color="tertiary">Loading more…</Text>
+                      ) : listingsQuery.hasNextPage ? (
+                        <Text type="caption2" color="tertiary">Scroll to load more</Text>
+                      ) : (
+                        <Text type="caption2" color="tertiary">No more listings</Text>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <EmptyState
+                    emoji={inAppEmptyStates.myListingsNoResults.emoji}
+                    title={inAppEmptyStates.myListingsNoResults.title}
+                    description={inAppEmptyStates.myListingsNoResults.description}
+                    actionLabel="Create Listing"
+                    onAction={() => setCreateListingOpen(true)}
+                    secondaryAction={
+                      hasActiveListingFilters
+                        ? { label: inAppEmptyStates.myListingsNoResults.secondaryActionLabel || "Clear Filters", onClick: clearListingFilters }
+                        : undefined
+                    }
+                  />
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </PageContainer>
 
       <AddChannelSheet

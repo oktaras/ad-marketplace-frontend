@@ -23,6 +23,8 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import { useSwipeTabNavigation } from "@/hooks/use-touch-gestures";
+import { useTabContentTransition } from "@/hooks/use-tab-content-transition";
 
 interface ChannelDetailSheetProps {
   channel: Channel | null;
@@ -56,6 +58,7 @@ const GRAPH_TYPE_PRIORITY: Record<GraphMetric, string[]> = {
   views: ["INTERACTIONS", "IV_INTERACTIONS", "STORY_INTERACTIONS"],
   engagement: ["INTERACTIONS", "REACTIONS_BY_EMOTION", "STORY_INTERACTIONS"],
 };
+const CHANNEL_DETAIL_TAB_ORDER = ["info", "analytics"] as const;
 
 function formatMetricValue(value: number | null | undefined): string {
   if (typeof value !== "number" || Number.isNaN(value)) {
@@ -522,11 +525,19 @@ export function ChannelDetailSheet({
     void Promise.all([analyticsQuery.refetch(), graphsQuery.refetch()]);
   };
 
+  const tabSwipeHandlers = useSwipeTabNavigation({
+    tabOrder: CHANNEL_DETAIL_TAB_ORDER,
+    activeTab,
+    onTabChange: (nextTab) => setActiveTab(nextTab),
+    enabled: open,
+  });
+  const tabTransitionClass = useTabContentTransition(activeTab, CHANNEL_DETAIL_TAB_ORDER);
+
   if (!channel) return null;
 
   return (
     <AppSheet open={open} onOpenChange={onOpenChange} title="Channel Details" fullHeight>
-      <div className="space-y-6">
+      <div className="space-y-6 min-h-full" {...tabSwipeHandlers}>
         <div className="space-y-3 pb-4 border-b border-border">
           <div className="flex items-start gap-3">
             <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center text-3xl flex-shrink-0">
@@ -582,7 +593,8 @@ export function ChannelDetailSheet({
           </button>
         </div>
 
-        {activeTab === "info" ? (
+        <div className={tabTransitionClass}>
+          {activeTab === "info" ? (
           <>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-secondary/50 rounded-xl p-4 text-center">
@@ -755,7 +767,7 @@ export function ChannelDetailSheet({
             ) : null}
 
           </div>
-        ) : (
+          ) : (
           <div className="space-y-2">
             <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/50 border border-border">
               <Lock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -768,7 +780,8 @@ export function ChannelDetailSheet({
               {analyticsMessages.refreshAnalytics}
             </Button>
           </div>
-        )}
+          )}
+        </div>
       </div>
     </AppSheet>
   );

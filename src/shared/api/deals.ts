@@ -261,6 +261,14 @@ export type UiDealFilter =
   | "cancelled"
   | "all";
 
+export type DealListSort =
+  | "created_desc"
+  | "created_asc"
+  | "updated_desc"
+  | "updated_asc";
+
+export type DealListFormat = "post" | "story" | "repost";
+
 type UiDealFilterStatus = Exclude<UiDealFilter, "all">;
 
 const UI_DEAL_FILTER_TO_BACKEND_STATUSES: Record<UiDealFilterStatus, BackendDealStatus[]> = {
@@ -1086,9 +1094,59 @@ function normalizeStatusFilter(statusFilter: UiDealFilter): string | undefined {
   return mapped.join(",");
 }
 
+function normalizeEscrowStatuses(statuses: DealEscrowStatus[] | undefined): string | undefined {
+  if (!Array.isArray(statuses) || statuses.length === 0) {
+    return undefined;
+  }
+
+  const normalized = Array.from(new Set(
+    statuses
+      .map((entry) => String(entry || "").trim().toUpperCase())
+      .filter((entry) => entry.length > 0),
+  ));
+
+  if (normalized.length === 0) {
+    return undefined;
+  }
+
+  return normalized.join(",");
+}
+
+function normalizeAdFormatTypes(formats: DealListFormat[] | undefined): string | undefined {
+  if (!Array.isArray(formats) || formats.length === 0) {
+    return undefined;
+  }
+
+  const mapped = Array.from(new Set(
+    formats
+      .map((entry) => String(entry || "").trim().toLowerCase())
+      .map((entry) => {
+        if (entry === "story") {
+          return "STORY";
+        }
+
+        if (entry === "repost") {
+          return "REPOST";
+        }
+
+        return "POST";
+      }),
+  ));
+
+  if (mapped.length === 0) {
+    return undefined;
+  }
+
+  return mapped.join(",");
+}
+
 export async function getDeals(params: {
   role: UserRole | null;
   statusFilter: UiDealFilter;
+  search?: string;
+  escrowStatuses?: DealEscrowStatus[];
+  adFormats?: DealListFormat[];
+  sortBy?: DealListSort;
   page?: number;
   limit?: number;
 }): Promise<DealsPageResult> {
@@ -1096,6 +1154,10 @@ export async function getDeals(params: {
   const requestedPage = params.page ?? 1;
   const requestedLimit = params.limit ?? 10;
   const normalizedStatus = normalizeStatusFilter(params.statusFilter);
+  const normalizedSearch = (params.search || "").trim();
+  const normalizedEscrowStatuses = normalizeEscrowStatuses(params.escrowStatuses);
+  const normalizedAdFormats = normalizeAdFormatTypes(params.adFormats);
+  const normalizedSortBy = (params.sortBy || "created_desc").trim().toLowerCase();
 
   const response = await request(OpenAPI, {
     method: "GET",
@@ -1105,6 +1167,10 @@ export async function getDeals(params: {
       limit: requestedLimit,
       ...(normalizedRole ? { role: normalizedRole } : {}),
       ...(normalizedStatus ? { status: normalizedStatus } : {}),
+      ...(normalizedSearch ? { search: normalizedSearch } : {}),
+      ...(normalizedEscrowStatuses ? { escrowStatus: normalizedEscrowStatuses } : {}),
+      ...(normalizedAdFormats ? { adFormatType: normalizedAdFormats } : {}),
+      ...(normalizedSortBy ? { sort: normalizedSortBy } : {}),
     },
   }) as RawDealsResponse;
 

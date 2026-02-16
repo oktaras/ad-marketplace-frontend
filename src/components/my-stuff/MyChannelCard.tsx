@@ -1,7 +1,7 @@
 import { Channel, CHANNEL_CATEGORIES } from "@/types/marketplace";
 import { Text } from "@telegram-tools/ui-kit";
 import { formatNumber } from "@/lib/format";
-import { Users, Eye, TrendingUp, BadgeCheck, Settings, BarChart3 } from "lucide-react";
+import { Users, Eye, TrendingUp, BadgeCheck, Settings, Languages } from "lucide-react";
 import { ChannelAvatar } from "@/components/common/ChannelAvatar";
 
 interface MyChannelCardProps {
@@ -11,7 +11,9 @@ interface MyChannelCardProps {
 
 export function MyChannelCard({ channel, onManage }: MyChannelCardProps) {
   const cat = CHANNEL_CATEGORIES.find((c) => c.value === channel.category);
-  const formatsCount = channel.adFormats?.length ?? 0;
+  const channelLanguage = channel.language?.trim()
+    ? channel.language.trim().toUpperCase()
+    : "—";
   const categoryLabel = cat?.label ?? channel.category
     .replace(/[-_]+/g, " ")
     .replace(/\s+/g, " ")
@@ -48,7 +50,7 @@ export function MyChannelCard({ channel, onManage }: MyChannelCardProps) {
         <StatBox icon={<Users className="h-3.5 w-3.5" />} label="Subs" value={formatNumber(channel.subscribers)} />
         <StatBox icon={<Eye className="h-3.5 w-3.5" />} label="Avg Views" value={formatNumber(channel.avgViews)} />
         <StatBox icon={<TrendingUp className="h-3.5 w-3.5" />} label="ER" value={`${channel.er}%`} />
-        <StatBox icon={<BarChart3 className="h-3.5 w-3.5" />} label="Formats" value={formatNumber(formatsCount)} />
+        <StatBox icon={<Languages className="h-3.5 w-3.5" />} label="Language" value={channelLanguage} />
       </div>
 
       {/* Action */}

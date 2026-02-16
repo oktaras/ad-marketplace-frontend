@@ -22,14 +22,25 @@ const roleOptions: { value: UserRole; title: string; description: string; icon: 
 
 export default function Onboarding() {
   const [selected, setSelected] = useState<UserRole | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { setRole, completeOnboarding } = useRole();
   const navigate = useNavigate();
 
-  const handleContinue = () => {
-    if (!selected) return;
+  const handleContinue = async () => {
+    if (!selected || isSubmitting) return;
+    setSubmitError(null);
+    setIsSubmitting(true);
     setRole(selected);
-    completeOnboarding();
-    navigate("/", { replace: true });
+
+    try {
+      await completeOnboarding(selected);
+      navigate("/", { replace: true });
+    } catch (error: unknown) {
+      setSubmitError(error instanceof Error ? error.message : "Failed to complete onboarding");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -90,12 +101,17 @@ export default function Onboarding() {
         {/* CTA */}
         <div className="w-full">
           <Button
-            text="Continue"
+            text={isSubmitting ? "Saving..." : "Continue"}
             onClick={handleContinue}
-            disabled={!selected}
+            disabled={!selected || isSubmitting}
             type="primary"
             className="w-full"
           />
+          {submitError && (
+            <Text type="caption1" color="destructive" className="mt-2 block text-center">
+              {submitError}
+            </Text>
+          )}
         </div>
       </div>
     </div>

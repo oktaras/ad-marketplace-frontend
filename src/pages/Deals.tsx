@@ -2,9 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { Text } from "@telegram-tools/ui-kit";
+import { SlidersHorizontal } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageContainer } from "@/components/common/PageContainer";
 import { HorizontalScrollRow } from "@/components/common/HorizontalScrollRow";
+import { FilterSortSheet, type FilterSortState } from "@/components/common/FilterSortSheet";
+import { ActiveFilters, type ActiveFilterChip } from "@/components/common/ActiveFilters";
 import { useRole } from "@/contexts/RoleContext";
 import { DealCard } from "@/components/deals/DealCard";
 import { DealDetailSheet } from "@/components/deals/DealDetailSheet";
@@ -20,17 +23,30 @@ import {
   requestDealCreativeRevision,
   submitDealCreative,
   type SubmitDealCreativePayload,
+  type DealListFormat,
+  type DealListSort,
   type UiDealFilter,
   verifyDealPayment,
 } from "@/shared/api/deals";
 import { prepareDealCreativeMediaUploads, uploadPreparedCreativeMediaFile } from "@/shared/api/media";
 import { getApiErrorMessage } from "@/shared/api/error";
 import { toast } from "@/hooks/use-toast";
-import { DISCOVERY_LIMIT, useInfiniteScroll } from "@/pages/discovery/utils";
+import {
+  DISCOVERY_LIMIT,
+  SEARCH_DEBOUNCE_MS,
+  SEARCH_MIN_LENGTH,
+  useDebouncedValue,
+  useInfiniteScroll,
+} from "@/pages/discovery/utils";
 import { inAppEmptyStates, inAppToasts } from "@/shared/notifications/in-app";
 import type { CreativeMedia, InlineButton } from "@/types/deal";
+import type { DealEscrowStatus } from "@/types/deal";
+import { useSwipeTabNavigation } from "@/hooks/use-touch-gestures";
+import { useTabContentTransition } from "@/hooks/use-tab-content-transition";
 
 type DealFilter = UiDealFilter;
+type DealSort = DealListSort;
+type DealRangeKey = "price";
 
 const STATUS_FILTERS: Record<DealFilter, { value: DealFilter; label: string; icon: string }> = {
   all: { value: "all", label: "All Deals", icon: "🤝" },
@@ -44,17 +60,68 @@ const STATUS_FILTERS: Record<DealFilter, { value: DealFilter; label: string; ico
   cancelled: { value: "cancelled", label: "Cancelled", icon: "❌" },
 };
 
-const EMPTY_STATUS_COUNTS: Record<DealFilter, number> = {
-  all: 0,
-  negotiation: 0,
-  awaiting_creative: 0,
-  creative_review: 0,
-  revision_requested: 0,
-  approved: 0,
-  published: 0,
-  completed: 0,
-  cancelled: 0,
+const DEAL_SORT_OPTIONS: Array<{ value: DealSort; label: string }> = [
+  { value: "created_desc", label: "Created: New → Old" },
+  { value: "created_asc", label: "Created: Old → New" },
+  { value: "updated_desc", label: "Updated: New → Old" },
+  { value: "updated_asc", label: "Updated: Old → New" },
+];
+
+const DEAL_FORMAT_OPTIONS: Array<{ value: DealListFormat; label: string; icon: string }> = [
+  { value: "post", label: "Post", icon: "📝" },
+  { value: "story", label: "Story", icon: "📸" },
+  { value: "repost", label: "Repost", icon: "🔁" },
+];
+
+const DEAL_ESCROW_STATUS_OPTIONS: Array<{ value: DealEscrowStatus; label: string }> = [
+  { value: "NONE", label: "No Escrow" },
+  { value: "PENDING", label: "Pending" },
+  { value: "HELD", label: "Held" },
+  { value: "RELEASING", label: "Releasing" },
+  { value: "RELEASED", label: "Released" },
+  { value: "REFUNDING", label: "Refunding" },
+  { value: "REFUNDED", label: "Refunded" },
+  { value: "PARTIAL_REFUND", label: "Partial Refund" },
+];
+
+const DEAL_FILTER_ORDER = Object.keys(STATUS_FILTERS) as DealFilter[];
+
+const DEAL_RANGE_OPTIONS = [
+  { key: "price", label: "Price", step: "1", fromPlaceholder: "From", toPlaceholder: "To" },
+] as const;
+
+const INITIAL_DEAL_RANGES: Record<DealRangeKey, { from: string; to: string }> = {
+  price: { from: "", to: "" },
 };
+
+const DEAL_FORMAT_VALUES = new Set<DealListFormat>(DEAL_FORMAT_OPTIONS.map((option) => option.value));
+const DEAL_ESCROW_STATUS_VALUES = new Set<DealEscrowStatus>(DEAL_ESCROW_STATUS_OPTIONS.map((option) => option.value));
+
+function isDealFormatValue(value: string): value is DealListFormat {
+  return DEAL_FORMAT_VALUES.has(value as DealListFormat);
+}
+
+function isDealEscrowStatusValue(value: string): value is DealEscrowStatus {
+  return DEAL_ESCROW_STATUS_VALUES.has(value as DealEscrowStatus);
+}
+
+function hasAnyRangeValue(ranges: Record<DealRangeKey, { from: string; to: string }>): boolean {
+  return Object.values(ranges).some((range) => range.from.trim().length > 0 || range.to.trim().length > 0);
+}
+
+function formatRangeLabel(label: string, from: string, to: string): string {
+  const fromValue = from.trim();
+  const toValue = to.trim();
+  if (fromValue && toValue) {
+    return `${label}: ${fromValue} - ${toValue}`;
+  }
+
+  if (fromValue) {
+    return `${label}: from ${fromValue}`;
+  }
+
+  return `${label}: to ${toValue}`;
+}
 
 export default function Deals() {
   const { role } = useRole();
@@ -62,15 +129,47 @@ export default function Deals() {
   const { id: routeDealId } = useParams();
   const queryClient = useQueryClient();
   const [selectedFilter, setSelectedFilter] = useState<DealFilter>("all");
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterSortState<DealSort>>({
+    search: "",
+    categories: [],
+    statuses: [],
+    sort: "created_desc",
+    ranges: INITIAL_DEAL_RANGES,
+  });
+
+  const debouncedSearch = useDebouncedValue(filters.search, SEARCH_DEBOUNCE_MS);
+  const normalizedSearch = debouncedSearch.trim();
+  const activeSearch = normalizedSearch.length >= SEARCH_MIN_LENGTH ? normalizedSearch : "";
+  const waitingForSearchThreshold = normalizedSearch.length > 0 && normalizedSearch.length < SEARCH_MIN_LENGTH;
+  const dealRanges: Record<DealRangeKey, { from: string; to: string }> = {
+    ...INITIAL_DEAL_RANGES,
+    ...(filters.ranges ?? {}),
+  };
+  const categoryKey = filters.categories.slice().sort().join(",");
+  const statusKey = filters.statuses.slice().sort().join(",");
+  const rangesKey = [dealRanges.price.from, dealRanges.price.to].join("|");
+  const selectedFormats = filters.categories.filter(isDealFormatValue);
+  const selectedEscrowStatuses = filters.statuses.filter(isDealEscrowStatusValue);
+  const hasActiveFilters = Boolean(
+    filters.search.trim().length > 0
+    || selectedFormats.length > 0
+    || selectedEscrowStatuses.length > 0
+    || hasAnyRangeValue(dealRanges),
+  );
 
   const dealsQuery = useInfiniteQuery({
-    queryKey: ["deals", role, selectedFilter],
+    queryKey: ["deals", role, selectedFilter, categoryKey, statusKey, activeSearch, filters.sort, rangesKey],
     enabled: Boolean(role),
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
       getDeals({
         role,
         statusFilter: selectedFilter,
+        search: activeSearch,
+        adFormats: selectedFormats,
+        escrowStatuses: selectedEscrowStatuses,
+        sortBy: filters.sort,
         page: pageParam,
         limit: DISCOVERY_LIMIT,
       }),
@@ -87,8 +186,84 @@ export default function Deals() {
     () => dealsQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [dealsQuery.data],
   );
+  const minPriceFilter = dealRanges.price.from.trim().length > 0 ? Number(dealRanges.price.from) : null;
+  const maxPriceFilter = dealRanges.price.to.trim().length > 0 ? Number(dealRanges.price.to) : null;
+  const dealsWithRangeFilter = useMemo(
+    () =>
+      deals.filter((deal) => {
+        if (minPriceFilter !== null && Number.isFinite(minPriceFilter) && deal.agreedPrice < minPriceFilter) {
+          return false;
+        }
 
-  const statusCounts = dealsQuery.data?.pages[0]?.statusCounts ?? EMPTY_STATUS_COUNTS;
+        if (maxPriceFilter !== null && Number.isFinite(maxPriceFilter) && deal.agreedPrice > maxPriceFilter) {
+          return false;
+        }
+
+        return true;
+      }),
+    [deals, maxPriceFilter, minPriceFilter],
+  );
+  const hasPriceRangeFilter = Boolean(
+    (dealRanges.price.from.trim() && Number.isFinite(Number(dealRanges.price.from)))
+    || (dealRanges.price.to.trim() && Number.isFinite(Number(dealRanges.price.to))),
+  );
+  const totalDeals = dealsQuery.data?.pages[0]?.pagination.total ?? dealsWithRangeFilter.length;
+  const displayedDealsCount = hasPriceRangeFilter ? dealsWithRangeFilter.length : totalDeals;
+  const activeFilterChips = useMemo<ActiveFilterChip[]>(() => {
+    const chips: ActiveFilterChip[] = [];
+
+    if (filters.search.trim()) {
+      chips.push({
+        key: "search",
+        label: `Search: ${filters.search.trim()}`,
+        onRemove: () => setFilters((previous) => ({ ...previous, search: "" })),
+      });
+    }
+
+    selectedFormats.forEach((format) => {
+      const label = DEAL_FORMAT_OPTIONS.find((option) => option.value === format)?.label ?? format;
+      chips.push({
+        key: `format-${format}`,
+        label: `Format: ${label}`,
+        onRemove: () =>
+          setFilters((previous) => ({
+            ...previous,
+            categories: previous.categories.filter((entry) => entry !== format),
+          })),
+      });
+    });
+
+    selectedEscrowStatuses.forEach((status) => {
+      const label = DEAL_ESCROW_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
+      chips.push({
+        key: `escrow-${status}`,
+        label: `Escrow: ${label}`,
+        onRemove: () =>
+          setFilters((previous) => ({
+            ...previous,
+            statuses: previous.statuses.filter((entry) => entry !== status),
+          })),
+      });
+    });
+
+    if (dealRanges.price.from.trim() || dealRanges.price.to.trim()) {
+      chips.push({
+        key: "range-price",
+        label: formatRangeLabel("Price", dealRanges.price.from, dealRanges.price.to),
+        onRemove: () =>
+          setFilters((previous) => ({
+            ...previous,
+            ranges: {
+              ...(previous.ranges ?? {}),
+              price: { from: "", to: "" },
+            },
+          })),
+      });
+    }
+
+    return chips;
+  }, [dealRanges.price.from, dealRanges.price.to, filters.search, selectedEscrowStatuses, selectedFormats]);
+
   const selectedDealFromList = useMemo(
     () => (routeDealId ? deals.find((deal) => deal.id === routeDealId) ?? null : null),
     [deals, routeDealId],
@@ -278,6 +453,21 @@ export default function Deals() {
     },
   });
 
+  const clearFilters = () => {
+    setFilters((previous) => ({
+      ...previous,
+      search: "",
+      categories: [],
+      statuses: [],
+      ranges: INITIAL_DEAL_RANGES,
+    }));
+  };
+
+  const resetAllFilters = () => {
+    clearFilters();
+    setSelectedFilter("all");
+  };
+
   const loadNextPage = useCallback(() => {
     if (dealsQuery.hasNextPage && !dealsQuery.isFetchingNextPage) {
       void dealsQuery.fetchNextPage();
@@ -289,14 +479,41 @@ export default function Deals() {
     onLoadMore: loadNextPage,
   });
 
+  const tabSwipeHandlers = useSwipeTabNavigation({
+    tabOrder: DEAL_FILTER_ORDER,
+    activeTab: selectedFilter,
+    onTabChange: (nextTab) => setSelectedFilter(nextTab),
+  });
+  const tabTransitionClass = useTabContentTransition(selectedFilter, DEAL_FILTER_ORDER);
+
   return (
     <AppLayout>
-      <PageContainer className="py-3 space-y-4">
+      <PageContainer className="py-3 space-y-4" {...tabSwipeHandlers}>
+        <div className="flex items-center justify-between gap-2">
+          <button
+            onClick={() => setFilterSheetOpen(true)}
+            className="w-full flex items-center justify-center gap-2 h-10 rounded-lg border border-border bg-card text-sm font-medium"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filters & Sort
+          </button>
+        </div>
+
+        <ActiveFilters
+          filters={activeFilterChips}
+          onClearAll={hasActiveFilters ? clearFilters : undefined}
+        />
+
+        {waitingForSearchThreshold ? (
+          <Text type="caption2" color="tertiary">
+            Enter at least {SEARCH_MIN_LENGTH} characters to start searching.
+          </Text>
+        ) : null}
+
         <HorizontalScrollRow>
           <div className="flex gap-2" role="tablist">
-            {(Object.keys(STATUS_FILTERS) as DealFilter[]).map((filterKey) => {
+            {DEAL_FILTER_ORDER.map((filterKey) => {
               const filter = STATUS_FILTERS[filterKey];
-              const count = statusCounts[filter.value];
               const isActive = selectedFilter === filter.value;
               return (
                 <button
@@ -313,65 +530,99 @@ export default function Deals() {
                 >
                   <span>{filter.icon}</span>
                   <span>{filter.label}</span>
-                  {count > 0 && (
-                    <span className={cn(
-                      "text-xs px-1.5 py-0.5 rounded-full",
-                      isActive ? "bg-primary-foreground/20" : "bg-muted"
-                    )}>
-                      {count}
-                    </span>
-                  )}
                 </button>
               );
             })}
           </div>
         </HorizontalScrollRow>
 
-        {dealsQuery.isError ? (
-          <EmptyState
-            emoji={inAppEmptyStates.dealsLoadFailed.emoji}
-            title={inAppEmptyStates.dealsLoadFailed.title}
-            description={inAppEmptyStates.dealsLoadFailed.description}
-            secondaryAction={{
-              label: inAppEmptyStates.dealsLoadFailed.secondaryActionLabel || "Retry",
-              onClick: () => dealsQuery.refetch(),
-            }}
-          />
-        ) : dealsQuery.isLoading ? (
-          <Text type="caption1" color="tertiary">
-            Loading…
-          </Text>
-        ) : deals.length === 0 ? (
-          <EmptyState
-            emoji={selectedFilter === "all" ? "🤝" : STATUS_FILTERS[selectedFilter].icon}
-            title={selectedFilter === "all" ? "No deals yet" : `No ${STATUS_FILTERS[selectedFilter].label.toLowerCase()} deals`}
-            description={
-              selectedFilter === "all"
-                ? role === "advertiser"
-                  ? "You don't have any deals. Explore channels to start a deal."
-                  : "You don't have any deals yet. Deals from briefs and listings will appear here."
-                : `No deals with ${STATUS_FILTERS[selectedFilter].label.toLowerCase()} status.`
-            }
-            actionLabel={selectedFilter !== "all" ? "Clear Filter" : undefined}
-            onAction={selectedFilter !== "all" ? () => setSelectedFilter("all") : undefined}
-          />
-        ) : (
-          <div className="space-y-3">
-            {deals.map((deal) => (
-              <DealCard key={deal.id} deal={deal} onSelect={(selected) => navigate(`/deals/${selected.id}`)} />
-            ))}
-            <div ref={sentinelRef} className="h-10 flex items-center justify-center">
-              {dealsQuery.isFetchingNextPage ? (
-                <Text type="caption1" color="tertiary">Loading more…</Text>
-              ) : dealsQuery.hasNextPage ? (
-                <Text type="caption2" color="tertiary">Scroll to load more</Text>
-              ) : (
-                <Text type="caption2" color="tertiary">No more deals</Text>
-              )}
+        <Text type="caption1" color="tertiary">
+          {`${displayedDealsCount} deal${displayedDealsCount !== 1 ? "s" : ""}`}
+        </Text>
+
+        <div className={tabTransitionClass}>
+          {dealsQuery.isError ? (
+            <EmptyState
+              emoji={inAppEmptyStates.dealsLoadFailed.emoji}
+              title={inAppEmptyStates.dealsLoadFailed.title}
+              description={inAppEmptyStates.dealsLoadFailed.description}
+              secondaryAction={{
+                label: inAppEmptyStates.dealsLoadFailed.secondaryActionLabel || "Retry",
+                onClick: () => dealsQuery.refetch(),
+              }}
+            />
+          ) : dealsQuery.isLoading ? (
+            <Text type="caption1" color="tertiary">
+              Loading…
+            </Text>
+          ) : dealsWithRangeFilter.length === 0 ? (
+            <EmptyState
+              emoji={selectedFilter === "all" && !hasActiveFilters ? "🤝" : STATUS_FILTERS[selectedFilter].icon}
+              title={
+                selectedFilter === "all" && !hasActiveFilters
+                  ? "No deals yet"
+                  : hasActiveFilters
+                    ? "No deals match selected filters"
+                    : `No ${STATUS_FILTERS[selectedFilter].label.toLowerCase()} deals`
+              }
+              description={
+                selectedFilter === "all" && !hasActiveFilters
+                  ? role === "advertiser"
+                    ? "You don't have any deals. Explore channels to start a deal."
+                    : "You don't have any deals yet. Deals from briefs and listings will appear here."
+                  : hasActiveFilters
+                    ? "Try changing filters to see more deals."
+                    : `No deals with ${STATUS_FILTERS[selectedFilter].label.toLowerCase()} status.`
+              }
+              actionLabel={selectedFilter !== "all" || hasActiveFilters ? "Clear Filters" : undefined}
+              onAction={selectedFilter !== "all" || hasActiveFilters ? resetAllFilters : undefined}
+            />
+          ) : (
+            <div className="space-y-3">
+              {dealsWithRangeFilter.map((deal) => (
+                <DealCard key={deal.id} deal={deal} onSelect={(selected) => navigate(`/deals/${selected.id}`)} />
+              ))}
+              <div ref={sentinelRef} className="h-10 flex items-center justify-center">
+                {dealsQuery.isFetchingNextPage ? (
+                  <Text type="caption1" color="tertiary">Loading more…</Text>
+                ) : dealsQuery.hasNextPage ? (
+                  <Text type="caption2" color="tertiary">Scroll to load more</Text>
+                ) : (
+                  <Text type="caption2" color="tertiary">No more deals</Text>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </PageContainer>
+
+      <FilterSortSheet
+        open={filterSheetOpen}
+        onOpenChange={setFilterSheetOpen}
+        title="Filter Deals"
+        value={filters}
+        onApply={setFilters}
+        sortOptions={DEAL_SORT_OPTIONS}
+        categoryOptions={DEAL_FORMAT_OPTIONS.map((option) => ({
+          value: option.value,
+          label: option.label,
+          icon: option.icon,
+        }))}
+        statusOptions={DEAL_ESCROW_STATUS_OPTIONS.map((option) => ({
+          value: option.value,
+          label: option.label,
+        }))}
+        showCategory
+        showStatus
+        searchPlaceholder="Search by deal, brief, channel…"
+        rangeOptions={DEAL_RANGE_OPTIONS.map((option) => ({
+          key: option.key,
+          label: option.label,
+          step: option.step,
+          fromPlaceholder: option.fromPlaceholder,
+          toPlaceholder: option.toPlaceholder,
+        }))}
+      />
 
       <DealDetailSheet
         deal={selectedDeal}

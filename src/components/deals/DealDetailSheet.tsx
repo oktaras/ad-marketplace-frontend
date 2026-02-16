@@ -29,6 +29,9 @@ import {
   openDealChat,
 } from "@/shared/api/deals";
 import { getApiErrorMessage } from "@/shared/api/error";
+import { useSwipeTabNavigation } from "@/hooks/use-touch-gestures";
+import { useTabContentTransition } from "@/hooks/use-tab-content-transition";
+import { isMilestoneTransitionReady } from "./milestone-visual-state";
 
 interface DealDetailSheetProps {
   deal: Deal | null;
@@ -64,25 +67,37 @@ const TAB_LABELS: Array<{ id: DealDetailsTab; label: string }> = [
   { id: "finance", label: "Finance" },
   { id: "activity", label: "Activity" },
 ];
+const DEAL_DETAILS_TAB_ORDER: readonly DealDetailsTab[] = TAB_LABELS.map((tabOption) => tabOption.id);
 
-function MilestoneTimeline({ milestones }: { milestones: Deal["milestones"] }) {
+function MilestoneTimeline({ deal }: { deal: Deal }) {
   return (
     <div className="space-y-0">
-      {milestones.map((milestone, index) => {
-        const isLast = index === milestones.length - 1;
+      {deal.milestones.map((milestone, index) => {
+        const isLast = index === deal.milestones.length - 1;
+        const transitionReady = isMilestoneTransitionReady(deal, index);
 
         return (
           <div key={milestone.id} className="flex gap-3">
             <div className="flex flex-col items-center">
               {milestone.status === "done" ? (
                 <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
+              ) : milestone.status === "active" && transitionReady ? (
+                <Circle className="w-5 h-5 text-primary fill-primary flex-shrink-0" />
               ) : milestone.status === "active" ? (
                 <Clock className="w-5 h-5 text-primary animate-pulse flex-shrink-0" />
               ) : (
                 <Circle className="w-5 h-5 text-border flex-shrink-0" />
               )}
               {!isLast ? (
-                <div className={`w-0.5 flex-1 min-h-[24px] ${milestone.status === "done" ? "bg-primary" : "bg-border"}`} />
+                <div
+                  className={`w-0.5 flex-1 min-h-[24px] ${
+                    milestone.status === "done"
+                      ? "bg-primary"
+                      : milestone.status === "active" && transitionReady
+                        ? "bg-primary animate-pulse"
+                        : "bg-border"
+                  }`}
+                />
               ) : null}
             </div>
 
@@ -219,6 +234,14 @@ export function DealDetailSheet({
   useEffect(() => {
     setTab("overview");
   }, [dealId, open]);
+
+  const tabSwipeHandlers = useSwipeTabNavigation({
+    tabOrder: DEAL_DETAILS_TAB_ORDER,
+    activeTab: tab,
+    onTabChange: (nextTab) => setTab(nextTab),
+    enabled: open,
+  });
+  const tabTransitionClass = useTabContentTransition(tab, DEAL_DETAILS_TAB_ORDER);
 
   const creativeQuery = useQuery({
     queryKey: ["deal", dealId, "creative"],
@@ -358,7 +381,12 @@ export function DealDetailSheet({
 
   return (
     <AppSheet open={open} onOpenChange={onOpenChange} title="Deal Details" fullHeight>
-      <Tabs value={tab} onValueChange={(next) => setTab(next as DealDetailsTab)} className="space-y-4">
+      <Tabs
+        value={tab}
+        onValueChange={(next) => setTab(next as DealDetailsTab)}
+        className="space-y-4 min-h-full"
+        {...tabSwipeHandlers}
+      >
         <HorizontalScrollRow bleed={false} showEdgeFade={false} wrapContent={false}>
           <TabsList className="w-max min-w-full justify-between gap-1 bg-secondary/60 !h-auto !p-0.5">
             {TAB_LABELS.map((tabOption) => (
@@ -373,7 +401,7 @@ export function DealDetailSheet({
           </TabsList>
         </HorizontalScrollRow>
 
-        <TabsContent value="overview" className="space-y-5">
+        <TabsContent value="overview" className={`space-y-5 ${tabTransitionClass}`}>
           <div className="bg-card rounded-xl border border-border p-4 space-y-3">
             <div className="flex items-start justify-between">
               <div className="min-w-0 flex-1 pr-3">
@@ -422,7 +450,7 @@ export function DealDetailSheet({
 
           <div className="space-y-3">
             <Text type="subheadline1" weight="medium">Timeline</Text>
-            <MilestoneTimeline milestones={deal.milestones} />
+            <MilestoneTimeline deal={deal} />
           </div>
 
           <DealActions
@@ -436,7 +464,7 @@ export function DealDetailSheet({
           />
         </TabsContent>
 
-        <TabsContent value="creative" className="space-y-4">
+        <TabsContent value="creative" className={`space-y-4 ${tabTransitionClass}`}>
           {creativeQuery.isLoading ? (
             <div className="bg-secondary/40 rounded-lg px-3 py-2">
               <Text type="caption1" color="secondary">Loading creative…</Text>
@@ -481,7 +509,7 @@ export function DealDetailSheet({
           )}
         </TabsContent>
 
-        <TabsContent value="posting-plan" className="space-y-4">
+        <TabsContent value="posting-plan" className={`space-y-4 ${tabTransitionClass}`}>
           {postingPlanQuery.isLoading ? (
             <div className="bg-secondary/40 rounded-lg px-3 py-2">
               <Text type="caption1" color="secondary">Loading posting plan…</Text>
@@ -501,7 +529,7 @@ export function DealDetailSheet({
           )}
         </TabsContent>
 
-        <TabsContent value="finance" className="space-y-4">
+        <TabsContent value="finance" className={`space-y-4 ${tabTransitionClass}`}>
           {financeQuery.isLoading ? (
             <div className="text-center py-6 bg-secondary/30 rounded-xl">
               <Text type="caption1" color="secondary">Loading finance data…</Text>
@@ -572,7 +600,7 @@ export function DealDetailSheet({
           )}
         </TabsContent>
 
-        <TabsContent value="activity" className="space-y-4">
+        <TabsContent value="activity" className={`space-y-4 ${tabTransitionClass}`}>
           <ActivityTimeline activity={activityData} loading={activityQuery.isLoading} />
           <DealActions deal={deal} role={role} chatOnly includeChatAction={false} />
         </TabsContent>

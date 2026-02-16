@@ -14,6 +14,8 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 import type { DiscoveryListing } from "@/shared/api/discovery";
 import { ChannelAnalyticsPanel } from "@/components/analytics/ChannelAnalyticsPanel";
 import { formatAdFormatTitle, getAdFormatDisplay, isAdFormatActive } from "@/shared/lib/ad-format";
+import { useSwipeTabNavigation } from "@/hooks/use-touch-gestures";
+import { useTabContentTransition } from "@/hooks/use-tab-content-transition";
 
 interface ListingDetailSheetProps {
   listing: DiscoveryListing | null;
@@ -22,6 +24,8 @@ interface ListingDetailSheetProps {
   onBookListing?: (listing: DiscoveryListing, adFormatId: string, price: number, currency: string) => void;
   bookLoading?: boolean;
 }
+
+const LISTING_DETAIL_TAB_ORDER = ["main", "analytics"] as const;
 
 function formatPercent(value: number | null | undefined): string {
   if (typeof value !== "number" || Number.isNaN(value)) {
@@ -89,13 +93,21 @@ export function ListingDetailSheet({
     );
   };
 
+  const tabSwipeHandlers = useSwipeTabNavigation({
+    tabOrder: LISTING_DETAIL_TAB_ORDER,
+    activeTab,
+    onTabChange: (nextTab) => setActiveTab(nextTab),
+    enabled: open,
+  });
+  const tabTransitionClass = useTabContentTransition(activeTab, LISTING_DETAIL_TAB_ORDER);
+
   if (!listing) {
     return null;
   }
 
   return (
     <AppSheet open={open} onOpenChange={onOpenChange} title="Listing Details" fullHeight>
-      <div className="space-y-5">
+      <div className="space-y-5 min-h-full" {...tabSwipeHandlers}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <Text type="title3" weight="medium" className="truncate">{listing.title}</Text>
@@ -137,8 +149,9 @@ export function ListingDetailSheet({
           </button>
         </div>
 
-        {activeTab === "main" ? (
-          <div className="space-y-4">
+        <div className={tabTransitionClass}>
+          {activeTab === "main" ? (
+            <div className="space-y-4">
             <div className="grid grid-cols-3 gap-2">
               <div className="bg-secondary/50 rounded-xl p-3 text-center">
                 <Users className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
@@ -237,13 +250,14 @@ export function ListingDetailSheet({
                 {bookLoading ? "Booking..." : "Book Now"}
               </Button>
             </div>
-          </div>
-        ) : (
-          <ChannelAnalyticsPanel
-            channelId={listing.channel.id}
-            viewer="advertiser"
-          />
-        )}
+            </div>
+          ) : (
+            <ChannelAnalyticsPanel
+              channelId={listing.channel.id}
+              viewer="advertiser"
+            />
+          )}
+        </div>
       </div>
     </AppSheet>
   );

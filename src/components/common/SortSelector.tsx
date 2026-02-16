@@ -17,12 +17,12 @@ interface SortSelectorProps {
 }
 
 const sortOptions: { value: SortOrder; label: string }[] = [
-  { value: "subscribers-desc", label: "Subscribers (High to Low)" },
-  { value: "subscribers-asc", label: "Subscribers (Low to High)" },
-  { value: "price-desc", label: "Price (High to Low)" },
-  { value: "price-asc", label: "Price (Low to High)" },
-  { value: "er-desc", label: "Engagement Rate (High to Low)" },
-  { value: "views-desc", label: "Avg Views (High to Low)" },
+  { value: "subscribers-desc", label: "Subscribers: High → Low" },
+  { value: "subscribers-asc", label: "Subscribers: Low → High" },
+  { value: "price-desc", label: "Price: High → Low" },
+  { value: "price-asc", label: "Price: Low → High" },
+  { value: "er-desc", label: "Engagement Rate: High → Low" },
+  { value: "views-desc", label: "Avg Views: High → Low" },
 ];
 
 export function SortSelector({ value, onChange }: SortSelectorProps) {

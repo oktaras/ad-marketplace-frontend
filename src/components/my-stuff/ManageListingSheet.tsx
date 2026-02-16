@@ -21,6 +21,24 @@ interface ManageListingSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function buildFormatsSignature(formats: AdFormatPricing[]): string {
+  const normalized = formats
+    .map((format) => ({
+      adFormatId: format.adFormatId ?? null,
+      format: format.format,
+      price: Number(format.price),
+      currency: format.currency,
+      enabled: format.enabled && isAdFormatActive(format.format),
+    }))
+    .sort((a, b) => {
+      const keyA = `${a.adFormatId ?? ""}:${a.format}`;
+      const keyB = `${b.adFormatId ?? ""}:${b.format}`;
+      return keyA.localeCompare(keyB);
+    });
+
+  return JSON.stringify(normalized);
+}
+
 export function ManageListingSheet({ listing, open, onOpenChange }: ManageListingSheetProps) {
   const queryClient = useQueryClient();
   const confirmWithPopup = useTelegramPopupConfirm();
@@ -131,6 +149,10 @@ export function ManageListingSheet({ listing, open, onOpenChange }: ManageListin
   };
 
   const handleSave = () => {
+    if (!hasListingChanges || saveMutation.isPending) {
+      return;
+    }
+
     saveMutation.mutate();
   };
 
@@ -155,6 +177,22 @@ export function ManageListingSheet({ listing, open, onOpenChange }: ManageListin
   };
 
   if (!listing) return null;
+
+  const normalizedInitialTitle = listing.title.trim();
+  const normalizedCurrentTitle = title.trim();
+  const normalizedInitialDescription = listing.description.trim();
+  const normalizedCurrentDescription = description.trim();
+  const initialFormatsSignature = buildFormatsSignature(
+    listing.formats.map((format) => ({
+      ...format,
+      enabled: format.enabled && isAdFormatActive(format.format),
+    })),
+  );
+  const currentFormatsSignature = buildFormatsSignature(formats);
+  const hasListingChanges = normalizedCurrentTitle !== normalizedInitialTitle
+    || normalizedCurrentDescription !== normalizedInitialDescription
+    || currentFormatsSignature !== initialFormatsSignature;
+
   const statusConfig = LISTING_STATUS_CONFIG[listing.status];
   const canToggleStatus = listing.status === "ACTIVE" || listing.status === "PAUSED";
   const statusDotClass =
@@ -218,7 +256,7 @@ export function ManageListingSheet({ listing, open, onOpenChange }: ManageListin
         </div>
 
         <div className="space-y-2">
-          <Button onClick={handleSave} disabled={saveMutation.isPending} className="w-full">
+          <Button onClick={handleSave} disabled={saveMutation.isPending || !hasListingChanges} className="w-full">
             {saveMutation.isPending ? "Saving…" : "Save Changes"}
           </Button>
           <Button

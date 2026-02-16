@@ -21,6 +21,7 @@ import {
   parseTelegramAuthPayload,
 } from "@/shared/telegram-auth/status";
 import { getTelegramInitUser } from "@/shared/lib/telegram";
+import { CardLoadingOverlay } from "@/components/profile/CardLoadingOverlay";
 import {
   CheckCircle2, AlertCircle, Loader2, Shield, Smartphone,
   ChevronRight, BarChart3, Lock, Unlink, Phone,
@@ -279,6 +280,7 @@ export function TelegramAuthCard() {
 
     return config.description;
   }, [isConnected, displayUsername, displayTelegramId, telegramUnavailable, config.description]);
+  const isInitialStatusLoading = telegramAuthQuery.isLoading;
 
   const handleRequestPhoneAndStart = async () => {
     setInlineError(null);
@@ -340,26 +342,30 @@ export function TelegramAuthCard() {
 
   return (
     <>
-      <button
-        onClick={() => setShowSheet(true)}
-        className={`w-full flex items-center gap-3 p-4 rounded-xl border transition-colors ${
-          isConnected
-            ? "bg-gradient-to-r from-primary/5 to-primary/0 border-primary/10 hover:from-primary/10"
-            : "bg-card border-border hover:bg-secondary/50"
-        }`}
-      >
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-          isConnected ? "bg-primary/20" : "bg-secondary"
-        }`}>
-          {config.icon}
-        </div>
-        <div className="flex-1 text-left min-w-0">
-          <Text type="subheadline1" weight="medium">{config.title}</Text>
-          <Text type="caption1" color="secondary" className="truncate">{statusLine}</Text>
-        </div>
-        <StatusBadge label={statusBadge.label} variant={statusBadge.variant} dot={false} />
-        <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-      </button>
+      <div className="relative rounded-xl">
+        <button
+          onClick={() => setShowSheet(true)}
+          disabled={isInitialStatusLoading}
+          className={`w-full flex items-center gap-3 p-4 rounded-xl border transition-colors disabled:cursor-not-allowed ${
+            isConnected
+              ? "bg-gradient-to-r from-primary/5 to-primary/0 border-primary/10 hover:from-primary/10"
+              : "bg-card border-border hover:bg-secondary/50"
+          }`}
+        >
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+            isConnected ? "bg-primary/20" : "bg-secondary"
+          }`}>
+            {config.icon}
+          </div>
+          <div className="flex-1 text-left min-w-0">
+            <Text type="subheadline1" weight="medium">{config.title}</Text>
+            <Text type="caption1" color="secondary" className="truncate">{statusLine}</Text>
+          </div>
+          <StatusBadge label={statusBadge.label} variant={statusBadge.variant} dot={false} />
+          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        </button>
+        <CardLoadingOverlay visible={isInitialStatusLoading} />
+      </div>
 
       <AppSheet open={showSheet} onOpenChange={setShowSheet} title="Telegram Account" icon={<Smartphone className="h-5 w-5" />}>
         <div className="space-y-5">

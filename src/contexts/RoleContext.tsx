@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { useAuthStore } from "@/features/auth/model/auth.store";
 
 export type UserRole = "advertiser" | "publisher";
 
@@ -6,7 +7,7 @@ interface RoleContextValue {
   role: UserRole | null;
   setRole: (role: UserRole) => void;
   hasCompletedOnboarding: boolean;
-  completeOnboarding: () => void;
+  completeOnboarding: (role?: UserRole) => Promise<void>;
 }
 
 const RoleContext = createContext<RoleContextValue | undefined>(undefined);
@@ -26,10 +27,21 @@ export function RoleProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("tg-ads-role", newRole);
   }, []);
 
-  const completeOnboarding = useCallback(() => {
+  const completeOnboarding = useCallback(async (roleOverride?: UserRole) => {
+    const resolvedRole = roleOverride ?? role;
+
+    if (!resolvedRole) {
+      throw new Error("Please select a role to continue");
+    }
+
+    await useAuthStore.getState().completeOnboarding({
+      isAdvertiser: resolvedRole === "advertiser",
+      isChannelOwner: resolvedRole === "publisher",
+    });
+
     setHasCompletedOnboarding(true);
     localStorage.setItem("tg-ads-onboarded", "true");
-  }, []);
+  }, [role]);
 
   return (
     <RoleContext.Provider value={{ role, setRole, hasCompletedOnboarding, completeOnboarding }}>
