@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Text } from "@telegram-tools/ui-kit";
-import { CheckCircle2, Circle, Clock, Copy, ExternalLink } from "lucide-react";
+import { CheckCircle2, Circle, Copy, ExternalLink } from "lucide-react";
 import { BackendDealStatus, Deal, DEAL_STATUS_CONFIG, type CreativeMedia, type InlineButton } from "@/types/deal";
 import { AppSheet } from "@/components/common/AppSheet";
 import { HorizontalScrollRow } from "@/components/common/HorizontalScrollRow";
@@ -81,12 +81,12 @@ function MilestoneTimeline({ deal }: { deal: Deal }) {
             <div className="flex flex-col items-center">
               {milestone.status === "done" ? (
                 <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
-              ) : milestone.status === "active" && transitionReady ? (
-                <Circle className="w-5 h-5 text-primary fill-primary flex-shrink-0" />
-              ) : milestone.status === "active" ? (
-                <Clock className="w-5 h-5 text-primary animate-pulse flex-shrink-0" />
               ) : (
-                <Circle className="w-5 h-5 text-border flex-shrink-0" />
+                <Circle
+                  className={`w-5 h-5 flex-shrink-0 ${
+                    milestone.status === "active" ? "text-primary" : "text-border"
+                  }`}
+                />
               )}
               {!isLast ? (
                 <div
@@ -401,6 +401,8 @@ export function DealDetailSheet({
           </TabsList>
         </HorizontalScrollRow>
 
+        <TimeoutBanner deal={deal} />
+
         <TabsContent value="overview" className={`space-y-5 ${tabTransitionClass}`}>
           <div className="bg-card rounded-xl border border-border p-4 space-y-3">
             <div className="flex items-start justify-between">
@@ -446,7 +448,6 @@ export function DealDetailSheet({
           </div>
 
           <DealProgressRail deal={deal} />
-          <TimeoutBanner deal={deal} />
 
           <div className="space-y-3">
             <Text type="subheadline1" weight="medium">Timeline</Text>
