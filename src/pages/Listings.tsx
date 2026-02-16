@@ -51,7 +51,7 @@ const LISTING_RANGE_OPTIONS = [
   { key: "price", label: "Price", step: "1", fromPlaceholder: "From", toPlaceholder: "To" },
   { key: "subscribers", label: "Subscribers", step: "1", fromPlaceholder: "From", toPlaceholder: "To" },
   { key: "views", label: "Views", step: "1", fromPlaceholder: "From", toPlaceholder: "To" },
-  { key: "engagementRate", label: "Engagement Rate", step: "0.01", fromPlaceholder: "From", toPlaceholder: "To" },
+  { key: "engagementRate", label: "Engagement Rate (%)", step: "1", fromPlaceholder: "From", toPlaceholder: "To" },
 ] as const;
 
 const INITIAL_LISTING_RANGES: Record<ListingRangeKey, { from: string; to: string }> = {

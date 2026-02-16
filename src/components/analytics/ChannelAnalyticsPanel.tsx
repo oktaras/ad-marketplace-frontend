@@ -1,7 +1,7 @@
 import { type ReactNode, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Text } from "@telegram-tools/ui-kit";
-import { Lock, RefreshCcw } from "lucide-react";
+import { Bell, Eye, Lock, RefreshCcw, TrendingUp, Users } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -32,7 +32,11 @@ import {
   getTelegramAuthStatus,
   isTelegramDetailedAnalyticsConnected,
 } from "@/shared/telegram-auth/status";
-import { chartTooltipStyle } from "@/shared/notifications/chart-tooltip";
+import {
+  chartCursorFillStyle,
+  chartCursorLineStyle,
+  chartTooltipStyle,
+} from "@/shared/notifications/chart-tooltip";
 
 interface ChannelAnalyticsPanelProps {
   channelId: string;
@@ -127,11 +131,12 @@ function GrowthTooltip({ active, payload }: any) {
   );
 }
 
-function StatBadge({ label, value }: { label: string; value: string }) {
+function InfoBox({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-secondary/50 p-3 text-center">
+    <div className="flex flex-col items-center gap-0.5 py-2 rounded-lg bg-secondary/50">
+      {icon ? <div className="text-muted-foreground">{icon}</div> : <div className="h-[14px]" />}
+      <Text type="caption1" weight="bold">{value}</Text>
       <Text type="caption2" color="tertiary">{label}</Text>
-      <Text type="subheadline2" weight="bold">{value}</Text>
     </div>
   );
 }
@@ -364,22 +369,26 @@ export function ChannelAnalyticsPanel({
         </div>
       ) : null}
 
-      <div className={`grid gap-2 ${isDetailedLocked ? "grid-cols-1" : "grid-cols-2"}`}>
-        <StatBadge
-          label="Followers"
+      <div className={`grid gap-2 ${isDetailedLocked ? "grid-cols-1" : "grid-cols-4"}`}>
+        <InfoBox
+          icon={<Users className="h-3.5 w-3.5" />}
+          label="Subs"
           value={formatCount(analytics?.metrics.subscriberCount)}
         />
         {!isDetailedLocked ? (
           <>
-            <StatBadge
-              label="Views / Post"
+            <InfoBox
+              icon={<Eye className="h-3.5 w-3.5" />}
+              label="Avg Views"
               value={formatCount(analytics?.metrics.avgViewsPerPost)}
             />
-            <StatBadge
+            <InfoBox
+              icon={<TrendingUp className="h-3.5 w-3.5" />}
               label="Engagement"
               value={formatPercent(analytics?.metrics.engagementRate ?? null)}
             />
-            <StatBadge
+            <InfoBox
+              icon={<Bell className="h-3.5 w-3.5" />}
               label="Notifications"
               value={formatPercent(analytics?.metrics.notificationEnabledRate ?? null)}
             />
@@ -393,7 +402,7 @@ export function ChannelAnalyticsPanel({
             <Text type="subheadline2" weight="medium" className="text-primary mb-1">Growth</Text>
             <Text type="caption2" color="tertiary">{periodLabel}</Text>
             {growthPoints.length > 0 ? (
-              <div className="h-48 mt-3">
+              <div className="h-48 mt-3" data-disable-swipe="true">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={growthPoints}>
                     <defs>
@@ -404,7 +413,7 @@ export function ChannelAnalyticsPanel({
                     </defs>
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={45} tickFormatter={(v: number) => formatNumber(Number(v) || 0)} />
-                    <Tooltip content={<GrowthTooltip />} />
+                    <Tooltip content={<GrowthTooltip />} cursor={chartCursorFillStyle} />
                     <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} fill={`url(#growthFill-${channelId})`} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -419,12 +428,12 @@ export function ChannelAnalyticsPanel({
             <Text type="caption2" color="tertiary">{periodLabel}</Text>
             {followersPoints.length > 0 ? (
               <>
-                <div className="h-48 mt-3">
+                <div className="h-48 mt-3" data-disable-swipe="true">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={followersPoints}>
                       <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={35} />
-                      <Tooltip {...chartTooltipStyle} cursor={{ fill: "hsl(var(--muted) / 0.28)" }} />
+                      <Tooltip {...chartTooltipStyle} cursor={chartCursorFillStyle} />
                       <Bar dataKey="joined" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} name="Joined" />
                       <Bar dataKey="left" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} name="Left" />
                     </BarChart>
@@ -450,12 +459,12 @@ export function ChannelAnalyticsPanel({
             <Text type="subheadline2" weight="medium" className="text-primary mb-1">Views</Text>
             <Text type="caption2" color="tertiary">{periodLabel}</Text>
             {viewsPoints.length > 0 ? (
-              <div className="h-48 mt-3">
+              <div className="h-48 mt-3" data-disable-swipe="true">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={viewsPoints}>
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={35} tickFormatter={(v: number) => formatNumber(Number(v) || 0)} />
-                    <Tooltip {...chartTooltipStyle} cursor={{ fill: "hsl(var(--muted) / 0.28)" }} />
+                    <Tooltip {...chartTooltipStyle} cursor={chartCursorFillStyle} />
                     <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Views" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -469,12 +478,12 @@ export function ChannelAnalyticsPanel({
             <Text type="subheadline2" weight="medium" className="text-primary mb-1">Interactions</Text>
             <Text type="caption2" color="tertiary">{periodLabel}</Text>
             {interactionsPoints.length > 0 ? (
-              <div className="h-48 mt-3">
+              <div className="h-48 mt-3" data-disable-swipe="true">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={interactionsPoints}>
                     <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={35} tickFormatter={(v: number) => formatNumber(Number(v) || 0)} />
-                    <Tooltip {...chartTooltipStyle} cursor={{ stroke: "hsl(var(--muted-foreground) / 0.45)", strokeWidth: 1 }} />
+                    <Tooltip {...chartTooltipStyle} cursor={chartCursorLineStyle} />
                     <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} name="Interactions" />
                   </LineChart>
                 </ResponsiveContainer>

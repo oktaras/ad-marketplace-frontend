@@ -16,6 +16,8 @@ import { ChannelAnalyticsPanel } from "@/components/analytics/ChannelAnalyticsPa
 import { formatAdFormatTitle, getAdFormatDisplay, isAdFormatActive } from "@/shared/lib/ad-format";
 import { useSwipeTabNavigation } from "@/hooks/use-touch-gestures";
 import { useTabContentTransition } from "@/hooks/use-tab-content-transition";
+import { ChannelAvatar } from "@/components/common/ChannelAvatar";
+import { getTelegramChannelAvatarUrl } from "@/shared/lib/channel-avatar";
 
 interface ListingDetailSheetProps {
   listing: DiscoveryListing | null;
@@ -34,6 +36,16 @@ function formatPercent(value: number | null | undefined): string {
 
   const rounded = Math.round(value * 10) / 10;
   return `${Number.isInteger(rounded) ? rounded.toFixed(0) : rounded.toFixed(1)}%`;
+}
+
+function InfoBox({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 py-2 rounded-lg bg-secondary/50">
+      {icon ? <div className="text-muted-foreground">{icon}</div> : <div className="h-[14px]" />}
+      <Text type="caption1" weight="bold">{value}</Text>
+      <Text type="caption2" color="tertiary">{label}</Text>
+    </div>
+  );
 }
 
 export function ListingDetailSheet({
@@ -105,16 +117,27 @@ export function ListingDetailSheet({
     return null;
   }
 
+  const channelAvatarUrl = getTelegramChannelAvatarUrl(listing.channel.username);
+
   return (
     <AppSheet open={open} onOpenChange={onOpenChange} title="Listing Details" fullHeight>
       <div className="space-y-5 min-h-full" {...tabSwipeHandlers}>
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <Text type="title3" weight="medium" className="truncate">{listing.title}</Text>
-            <Text type="caption1" color="secondary">{listing.channel.title}</Text>
-            <Text type="caption2" color="tertiary">
-              {listing.channel.username ? `@${listing.channel.username.replace(/^@/, "")}` : "@unknown"}
-            </Text>
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-11 h-11 rounded-full bg-secondary flex items-center justify-center text-xl flex-shrink-0">
+              <ChannelAvatar
+                avatar={channelAvatarUrl}
+                name={listing.channel.title}
+                className="h-full w-full text-xl"
+              />
+            </div>
+            <div className="min-w-0">
+              <Text type="title3" weight="medium" className="truncate">{listing.title}</Text>
+              <Text type="caption1" color="secondary">{listing.channel.title}</Text>
+              <Text type="caption2" color="tertiary">
+                {listing.channel.username ? `@${listing.channel.username.replace(/^@/, "")}` : "@unknown"}
+              </Text>
+            </div>
           </div>
           {listing.channel.username ? (
             <Button variant="outline" size="sm" asChild>
@@ -153,27 +176,9 @@ export function ListingDetailSheet({
           {activeTab === "main" ? (
             <div className="space-y-4">
             <div className="grid grid-cols-3 gap-2">
-              <div className="bg-secondary/50 rounded-xl p-3 text-center">
-                <Users className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
-                <Text type="caption2" color="tertiary">Subscribers</Text>
-                <Text type="subheadline2" weight="bold">
-                  {formatNumber(listing.channel.stats?.subscribers ?? 0)}
-                </Text>
-              </div>
-              <div className="bg-secondary/50 rounded-xl p-3 text-center">
-                <Eye className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
-                <Text type="caption2" color="tertiary">Avg Views</Text>
-                <Text type="subheadline2" weight="bold">
-                  {formatNumber(listing.channel.stats?.avgViews ?? 0)}
-                </Text>
-              </div>
-              <div className="bg-secondary/50 rounded-xl p-3 text-center">
-                <TrendingUp className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
-                <Text type="caption2" color="tertiary">Engagement</Text>
-                <Text type="subheadline2" weight="bold">
-                  {formatPercent(listing.channel.stats?.engagementRate ?? null)}
-                </Text>
-              </div>
+              <InfoBox icon={<Users className="h-3.5 w-3.5" />} label="Audience" value={formatNumber(listing.channel.stats?.subscribers ?? 0)} />
+              <InfoBox icon={<Eye className="h-3.5 w-3.5" />} label="Avg Views" value={formatNumber(listing.channel.stats?.avgViews ?? 0)} />
+              <InfoBox icon={<TrendingUp className="h-3.5 w-3.5" />} label="Engagement Rate" value={formatPercent(listing.channel.stats?.engagementRate ?? null)} />
             </div>
 
             <div className="space-y-2">
@@ -182,8 +187,6 @@ export function ListingDetailSheet({
                 {listing.formatOffers.map((offer) => {
                   const active = isAdFormatActive(offer.adFormat.type);
                   const title = formatAdFormatTitle(offer.adFormat.type, offer.adFormat.name);
-                  const typeLabel = getAdFormatDisplay(offer.adFormat.type);
-                  const showTypeLabel = title.trim().toLowerCase() !== typeLabel.trim().toLowerCase();
                   return (
                   <div
                     key={offer.id}
@@ -195,9 +198,6 @@ export function ListingDetailSheet({
                       <Text type="caption1" weight="medium">
                         {title}
                       </Text>
-                      {showTypeLabel && (
-                        <Text type="caption2" color="tertiary">{typeLabel}</Text>
-                      )}
                     </div>
                     <Text type="caption1" weight="medium">
                       {formatCurrency(offer.effectivePrice, offer.effectiveCurrency)}

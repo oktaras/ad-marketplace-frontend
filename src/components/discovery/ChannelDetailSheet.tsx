@@ -8,7 +8,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getDiscoveryChannelAnalytics, getDiscoveryChannelGraphs } from "@/shared/api/discovery";
 import type { DiscoveryChannelAnalytics, DiscoveryChannelGraph } from "@/shared/api/discovery";
-import { chartTooltipStyle } from "@/shared/notifications/chart-tooltip";
+import {
+  chartCursorFillStyle,
+  chartCursorLineStyle,
+  chartTooltipStyle,
+} from "@/shared/notifications/chart-tooltip";
 import { analyticsMessages } from "@/shared/analytics/messages";
 import { ChannelAvatar } from "@/components/common/ChannelAvatar";
 import {
@@ -694,7 +698,7 @@ export function ChannelDetailSheet({
             <div className="space-y-2">
               <Text type="subheadline2" weight="medium">Subscribers Trend (30d)</Text>
               {subscribersGraph.length > 1 ? (
-                <div className="h-44 bg-secondary/20 rounded-xl p-2">
+                <div className="h-44 bg-secondary/20 rounded-xl p-2" data-disable-swipe="true">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={subscribersGraph}>
                       <defs>
@@ -705,7 +709,7 @@ export function ChannelDetailSheet({
                       </defs>
                       <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={45} tickFormatter={(v) => formatNumber(Number(v) || 0)} />
-                      <Tooltip {...chartTooltipStyle} />
+                      <Tooltip {...chartTooltipStyle} cursor={chartCursorFillStyle} />
                       <Area type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#detailSubscribersFill)" />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -718,12 +722,12 @@ export function ChannelDetailSheet({
             <div className="space-y-2">
               <Text type="subheadline2" weight="medium">Views Per Post (30d)</Text>
               {viewsGraph.length > 1 ? (
-                <div className="h-44 bg-secondary/20 rounded-xl p-2">
+                <div className="h-44 bg-secondary/20 rounded-xl p-2" data-disable-swipe="true">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={viewsGraph}>
                       <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={35} tickFormatter={(v) => formatNumber(Number(v) || 0)} />
-                      <Tooltip {...chartTooltipStyle} />
+                      <Tooltip {...chartTooltipStyle} cursor={chartCursorFillStyle} />
                       <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -736,12 +740,12 @@ export function ChannelDetailSheet({
             <div className="space-y-2">
               <Text type="subheadline2" weight="medium">Engagement Rate (30d)</Text>
               {engagementGraph.length > 1 ? (
-                <div className="h-44 bg-secondary/20 rounded-xl p-2">
+                <div className="h-44 bg-secondary/20 rounded-xl p-2" data-disable-swipe="true">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={engagementGraph}>
                       <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={35} tickFormatter={(v) => `${Number(v) || 0}%`} />
-                      <Tooltip {...chartTooltipStyle} />
+                      <Tooltip {...chartTooltipStyle} cursor={chartCursorLineStyle} />
                       <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>

@@ -12,7 +12,7 @@ export function BottomNav() {
   const briefsTab = { id: "briefs", label: "Briefs", icon: FileText, path: "/briefs" };
   const listingsTab = { id: "listings", label: "Listings", icon: Radio, path: "/listings" };
   const myBriefsTab = { id: "my-briefs", label: "My Briefs", icon: FileText, path: "/my-briefs" };
-  const myChannelsTab = { id: "my-channels", label: "My Channels", icon: Briefcase, path: "/my-channels" };
+  const myChannelsTab = { id: "my-channels", label: "My Channels", icon: Radio, path: "/my-channels" };
 
   const homeTab = (() => {
     switch (role) {

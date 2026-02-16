@@ -175,6 +175,12 @@
     touch-action: manipulation;
   }
 
+  input,
+  textarea,
+  [contenteditable="true"] {
+    caret-color: hsl(var(--foreground));
+  }
+
   .app-safe-area-top {
     padding-top: var(--app-safe-top-offset);
   }

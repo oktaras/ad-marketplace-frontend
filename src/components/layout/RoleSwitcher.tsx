@@ -1,3 +1,4 @@
+import type { HTMLAttributes } from "react";
 import { useRole, UserRole } from "@/contexts/RoleContext";
 import { cn } from "@/lib/utils";
 
@@ -6,11 +7,23 @@ const roles: { value: UserRole; label: string; emoji: string }[] = [
   { value: "publisher", label: "Publisher", emoji: "📡" },
 ];
 
-export function RoleSwitcher() {
+interface RoleSwitcherProps extends HTMLAttributes<HTMLDivElement> {
+  fullWidth?: boolean;
+}
+
+export function RoleSwitcher({ className, fullWidth = false, ...props }: RoleSwitcherProps) {
   const { role, setRole } = useRole();
 
   return (
-    <div className="flex items-center bg-secondary rounded-lg p-1 gap-1" role="tablist">
+    <div
+      className={cn(
+        "flex items-center bg-secondary rounded-lg p-1 gap-1",
+        fullWidth && "w-full",
+        className,
+      )}
+      role="tablist"
+      {...props}
+    >
       {roles.map((r) => (
         <button
           key={r.value}
@@ -19,9 +32,10 @@ export function RoleSwitcher() {
           onClick={() => setRole(r.value)}
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap",
+            fullWidth && "flex-1 justify-center",
             role === r.value
               ? "bg-card text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
           <span className="text-sm leading-none">{r.emoji}</span>

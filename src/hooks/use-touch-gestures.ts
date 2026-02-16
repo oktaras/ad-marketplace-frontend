@@ -22,7 +22,7 @@ function readTouchPoint(event: Parameters<TouchEventHandler<HTMLElement>>[0]): T
 }
 
 function isSwipeBlockedTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) {
+  if (!(target instanceof Element)) {
     return false;
   }
 
