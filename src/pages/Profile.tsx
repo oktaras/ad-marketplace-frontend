@@ -6,6 +6,7 @@ import { TelegramAuthCard } from "@/components/profile/TelegramAuthCard";
 import { UserInfoCard } from "@/components/profile/UserInfoCard";
 import { SettingsSheet } from "@/components/profile/SettingsSheet";
 import { NotificationsSheet } from "@/components/profile/NotificationsSheet";
+import { ProfileFaqSheet } from "@/components/profile/ProfileFaqSheet";
 import { RoleSwitcher } from "@/components/layout/RoleSwitcher";
 import { useRole } from "@/contexts/RoleContext";
 import { Group, GroupItem, Text } from "@telegram-tools/ui-kit";
@@ -46,6 +47,7 @@ export default function Profile() {
   const { role } = useRole();
   const [showSettings, setShowSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showFaq, setShowFaq] = useState(false);
   const telegramSupportUrl = env.telegramSupportUrl;
 
   useEffect(() => {
@@ -121,6 +123,8 @@ export default function Profile() {
             text="View FAQ & Documentation"
             before={<CircleHelp className="h-5 w-5 text-muted-foreground" />}
             description="How marketplace workflows and roles work"
+            chevron
+            onClick={() => setShowFaq(true)}
           />
           <GroupItem
             text="Report an Issue"
@@ -140,6 +144,7 @@ export default function Profile() {
         </PageContainer>
       <SettingsSheet open={showSettings} onOpenChange={setShowSettings} />
       <NotificationsSheet open={showNotifications} onOpenChange={setShowNotifications} />
+      <ProfileFaqSheet open={showFaq} onOpenChange={setShowFaq} />
     </AppLayout>
   );
 }

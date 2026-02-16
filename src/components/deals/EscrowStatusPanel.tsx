@@ -5,6 +5,7 @@ import { Lock, CheckCircle2, AlertCircle, Wallet, RefreshCcw } from "lucide-reac
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import type { UserRole } from "@/contexts/RoleContext";
+import { env } from "@/app/config/env";
 
 interface EscrowStatusPanelProps {
   deal: Deal;
@@ -83,6 +84,7 @@ export function EscrowStatusPanel({
 
   const showFundEscrow = role === "advertiser" && Boolean(availableActions?.fundDeal) && Boolean(onFundDeal);
   const showVerifyPayment = role === "advertiser" && Boolean(availableActions?.verifyPayment) && Boolean(onVerifyPayment);
+  const isTestnetConfigured = env.tonNetwork === "testnet";
 
   const hasEscrowActions = showFundEscrow || showVerifyPayment;
   const knownPlatformFeeAmount = typeof platformFeeAmount === "number"
@@ -155,6 +157,17 @@ export function EscrowStatusPanel({
 
       {hasEscrowActions && (
         <div className="space-y-2">
+          {isTestnetConfigured && showFundEscrow ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
+                <Text type="caption1" className="text-destructive">
+                  Testnet warning: do not fund escrow with real assets. All real assets sent here will be lost.
+                </Text>
+              </div>
+            </div>
+          ) : null}
+
           {showFundEscrow && (
             <Button className="w-full" onClick={() => onFundDeal?.(deal.id)} disabled={fundDealLoading}>
               <Wallet className="w-4 h-4" />

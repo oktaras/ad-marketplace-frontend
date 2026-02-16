@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Text } from "@telegram-tools/ui-kit";
 import { Button } from "@/components/ui/button";
 import { AppSheet } from "@/components/common/AppSheet";
-import { ChevronRight, Copy, Check, Unlink, Wallet, Loader2 } from "lucide-react";
+import { ChevronRight, Copy, Check, Unlink, Wallet, Loader2, AlertTriangle } from "lucide-react";
 import { CHAIN, toUserFriendlyAddress, useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
@@ -219,6 +219,7 @@ export function WalletCard() {
   const connectionHint = linkedWalletAddress
     ? "Connected and linked to this account in backend profile."
     : "No wallet linked.";
+  const isTestnetConfigured = env.tonNetwork === "testnet";
 
   const syncWalletAddressFromProfile = useCallback(async (): Promise<string | null> => {
     const profile = await UsersService.getApiUsersMe();
@@ -426,6 +427,17 @@ export function WalletCard() {
         )}
         <CardLoadingOverlay visible={isHydratingProfile} />
       </div>
+
+      {isTestnetConfigured ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-destructive" />
+            <Text type="caption1" className="text-destructive">
+              Testnet warning: do not use real assets. All real assets will be lost.
+            </Text>
+          </div>
+        </div>
+      ) : null}
 
       <AppSheet open={showDetail} onOpenChange={setShowDetail} title="TON Wallet" icon={<Wallet className="h-5 w-5" />}>
         <div className="space-y-5">
