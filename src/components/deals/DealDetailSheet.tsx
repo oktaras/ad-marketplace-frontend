@@ -442,7 +442,7 @@ export function DealDetailSheet({
             {!isTerminalDeal(deal) ? (
               <Button variant="outline" className="w-full" onClick={() => void handleOpenDealChat()}>
                 <ExternalLink className="w-4 h-4" />
-                Chat through Bot
+                Chat in Bot
               </Button>
             ) : null}
           </div>

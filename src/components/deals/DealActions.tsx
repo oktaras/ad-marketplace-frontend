@@ -93,7 +93,7 @@ function getActions(params: {
 
   if (includeChatAction && !isTerminalDeal(deal)) {
     actions.push({
-      label: "Chat through Bot",
+      label: "Chat in Bot",
       icon: <ExternalLink className="w-4 h-4" />,
       variant: "outline",
       onClick: async () => {
