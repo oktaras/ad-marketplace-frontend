@@ -442,11 +442,11 @@ export function ChannelAnalyticsPanel({
                 <div className="flex items-center gap-4 mt-2 justify-center">
                   <div className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full" style={{ backgroundColor: "hsl(var(--success))" }} />
-                    <Text type="caption2" className="text-success">Joined</Text>
+                    <Text type="caption2">Joined</Text>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full" style={{ backgroundColor: "hsl(var(--destructive))" }} />
-                    <Text type="caption2" className="text-success">Left</Text>
+                    <Text type="caption2">Left</Text>
                   </div>
                 </div>
               </>
