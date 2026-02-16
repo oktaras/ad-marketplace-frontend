@@ -24,4 +24,5 @@ export const http = axios.create({
   },
 });
 
+setupInterceptors(axios);
 setupInterceptors(http);

@@ -9,6 +9,8 @@ import type { UserRole } from "@/contexts/RoleContext";
 interface EscrowStatusPanelProps {
   deal: Deal;
   role: UserRole | null;
+  platformFeeBps?: number | null;
+  platformFeePercent?: number | null;
   platformFeeAmount?: number | null;
   publisherAmount?: number | null;
   onFundDeal?: (dealId: string) => void;
@@ -65,6 +67,8 @@ const escrowVariantMap = {
 export function EscrowStatusPanel({
   deal,
   role,
+  platformFeeBps,
+  platformFeePercent,
   platformFeeAmount,
   publisherAmount,
   onFundDeal,
@@ -87,6 +91,17 @@ export function EscrowStatusPanel({
   const knownPublisherAmount = typeof publisherAmount === "number"
     ? publisherAmount
     : (typeof platformFeeAmount === "number" ? Math.max(amount - platformFeeAmount, 0) : null);
+  const inferredFeePercent = amount > 0 && knownPlatformFeeAmount !== null
+    ? (knownPlatformFeeAmount / amount) * 100
+    : null;
+  const effectiveFeePercent = typeof platformFeePercent === "number"
+    ? platformFeePercent
+    : (typeof platformFeeBps === "number" ? platformFeeBps / 100 : inferredFeePercent);
+  const feePercentLabel = typeof effectiveFeePercent === "number" && Number.isFinite(effectiveFeePercent)
+    ? Number.isInteger(effectiveFeePercent)
+      ? `${effectiveFeePercent}%`
+      : `${effectiveFeePercent.toFixed(2).replace(/\.?0+$/, "")}%`
+    : null;
   const advertiserLabel = role === "advertiser" ? "You pay" : "Advertiser pays";
   const publisherLabel = role === "publisher" ? "You receive" : "Publisher receives";
 
@@ -106,11 +121,6 @@ export function EscrowStatusPanel({
         />
       </div>
 
-      <div className="bg-card rounded-lg px-3 py-2 border border-border">
-        <Text type="caption2" color="secondary">Amount</Text>
-        <Text type="subheadline1" weight="medium">{formatCurrency(amount, currency)}</Text>
-      </div>
-
       <div className="bg-card rounded-lg px-3 py-2 border border-border space-y-2">
         <Text type="caption2" color="secondary">Payment Flow</Text>
         <div className="flex items-center justify-between gap-2">
@@ -119,7 +129,9 @@ export function EscrowStatusPanel({
         </div>
         {knownPlatformFeeAmount !== null ? (
           <div className="flex items-center justify-between gap-2">
-            <Text type="caption1" color="secondary">Platform receives (fee)</Text>
+            <Text type="caption1" color="secondary">
+              {feePercentLabel ? `Platform receives (fee ${feePercentLabel})` : "Platform receives (fee)"}
+            </Text>
             <Text type="caption1" weight="medium">{formatCurrency(knownPlatformFeeAmount, currency)}</Text>
           </div>
         ) : null}

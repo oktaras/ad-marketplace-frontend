@@ -8,6 +8,12 @@ import {
 } from "@/components/ui/select";
 import { AppLanguage, LANGUAGES, useLanguage } from "@/contexts/LanguageContext";
 
+type LanguageOption = {
+  value: string;
+  label: string;
+  disabled?: boolean;
+};
+
 interface LanguageSelectorProps {
   /** Override value — if not provided, uses global context */
   value?: string;
@@ -17,6 +23,10 @@ interface LanguageSelectorProps {
   variant?: "full" | "compact";
   /** Additional language options beyond the default 3 */
   extraOptions?: { value: string; label: string }[];
+  /** Replace default language options */
+  options?: LanguageOption[];
+  /** Disable selector interaction */
+  disabled?: boolean;
   className?: string;
 }
 
@@ -40,11 +50,13 @@ export function LanguageSelector({
   onChange,
   variant = "full",
   extraOptions,
+  options,
+  disabled = false,
   className,
 }: LanguageSelectorProps) {
   const { language, setLanguage } = useLanguage();
 
-  const currentValue = value ?? language;
+  const requestedValue = value ?? language;
   const handleChange = (v: string) => {
     if (onChange) {
       onChange(v);
@@ -53,12 +65,15 @@ export function LanguageSelector({
     }
   };
 
-  const options = extraOptions
+  const availableOptions = options ?? (extraOptions
     ? [...ALL_LANGUAGES, ...extraOptions]
-    : ALL_LANGUAGES;
+    : ALL_LANGUAGES);
+  const currentValue = availableOptions.some((option) => option.value === requestedValue)
+    ? requestedValue
+    : availableOptions[0]?.value ?? requestedValue;
 
   return (
-    <Select value={currentValue} onValueChange={handleChange}>
+    <Select value={currentValue} onValueChange={handleChange} disabled={disabled || availableOptions.length === 0}>
       <SelectTrigger className={className}>
         <div className="flex items-center gap-2">
           <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -66,8 +81,8 @@ export function LanguageSelector({
         </div>
       </SelectTrigger>
       <SelectContent className="z-50 bg-popover border border-border shadow-lg">
-        {options.map((lang) => (
-          <SelectItem key={lang.value} value={lang.value}>
+        {availableOptions.map((lang) => (
+          <SelectItem key={lang.value} value={lang.value} disabled={lang.disabled}>
             {variant === "compact" ? lang.value : lang.label}
           </SelectItem>
         ))}

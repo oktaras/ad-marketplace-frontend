@@ -13,6 +13,7 @@ type Props = {
 export function AuthBootstrapProvider({ children }: Props) {
   const { initDataRaw, isReady } = useTma();
   const authenticate = useAuthStore((state) => state.authenticate);
+  const initDataInvalid = useAuthStore((state) => state.initDataInvalid);
   const lastBootstrappedInitData = useRef<string | null>(null);
   const resolvedInitData = (initDataRaw?.trim() || getTelegramInitData()?.trim() || '');
   const missingInitData = isReady && !resolvedInitData;
@@ -63,6 +64,28 @@ export function AuthBootstrapProvider({ children }: Props) {
           <h1 style={{ fontSize: 24, fontWeight: 700 }}>Telegram Launch Data Is Missing</h1>
           <p style={{ color: 'var(--color-foreground-secondary)' }}>
             Open this Mini App from Telegram to continue. Direct browser access is blocked.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (initDataInvalid) {
+    return (
+      <main
+        style={{
+          minHeight: '100dvh',
+          display: 'grid',
+          placeItems: 'center',
+          padding: 24,
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ maxWidth: 420, display: 'grid', gap: 12, justifyItems: 'center' }}>
+          <AlertCircle size={28} />
+          <h1 style={{ fontSize: 24, fontWeight: 700 }}>Telegram Session Expired</h1>
+          <p style={{ color: 'var(--color-foreground-secondary)' }}>
+            Please close and reopen this Mini App from Telegram.
           </p>
         </div>
       </main>

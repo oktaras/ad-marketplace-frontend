@@ -245,6 +245,13 @@ export default function MyChannels() {
     () => allListings.map((listing) => mapMyListing(listing, categoryBySlug)),
     [allListings, categoryBySlug],
   );
+  const selectedChannelForSheet = useMemo(() => {
+    if (!selectedChannel) {
+      return null;
+    }
+
+    return channels.find((channel) => channel.id === selectedChannel.id) ?? selectedChannel;
+  }, [channels, selectedChannel]);
   const channelFormatsByChannelId = useMemo(
     () =>
       new Map(
@@ -504,7 +511,7 @@ export default function MyChannels() {
       />
 
       <ChannelSettingsSheet
-        channel={selectedChannel}
+        channel={selectedChannelForSheet}
         open={!!selectedChannel}
         onOpenChange={(open) => !open && setSelectedChannel(null)}
       />

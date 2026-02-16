@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { SlidersHorizontal } from "lucide-react";
 import { useState } from "react";
 import { AppSheet } from "@/components/common/AppSheet";
+import { HorizontalScrollRow } from "@/components/common/HorizontalScrollRow";
 
 interface CategoryPillsProps {
   /** Currently selected category */
@@ -69,20 +70,15 @@ export function CategoryPills({
   if (scrollable) {
     return (
       <>
-        <div className={cn("relative", className)}>
-          {/* Left fade */}
-          <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
-          {/* Right fade */}
-          <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
-          <div
-            className="flex gap-2 overflow-x-auto scrollbar-hide py-3 px-1"
-            style={{ WebkitOverflowScrolling: "touch" }}
-          >
+        <HorizontalScrollRow
+          className={className}
+          scrollClassName="py-3"
+          contentClassName="flex gap-2 px-1"
+        >
             {allPill}
             {CHANNEL_CATEGORIES.map(renderPill)}
             {morePill}
-          </div>
-        </div>
+        </HorizontalScrollRow>
 
         {showMore && (
           <AppSheet

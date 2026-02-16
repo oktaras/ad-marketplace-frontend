@@ -57,7 +57,7 @@ export function ChannelSelectList({ channels, selectedId, onSelect, disabledIds 
               <Text type="subheadline2" weight="medium">{ch.name}</Text>
               <Text type="caption2" color="secondary">
                 {formatNumber(ch.subscribers)} subscribers
-                {disabled && " • Below minimum"}
+                {disabled && " • Doesn't match"}
               </Text>
               {renderExtra?.(ch)}
             </div>

@@ -13,6 +13,7 @@ import {
 import { formatCurrency, formatNumber } from "@/lib/format";
 import type { DiscoveryListing } from "@/shared/api/discovery";
 import { ChannelAnalyticsPanel } from "@/components/analytics/ChannelAnalyticsPanel";
+import { formatAdFormatTitle, getAdFormatDisplay, isAdFormatActive } from "@/shared/lib/ad-format";
 
 interface ListingDetailSheetProps {
   listing: DiscoveryListing | null;
@@ -54,21 +55,25 @@ export function ListingDetailSheet({
     const enabled = offers.filter((offer) => offer.enabled);
     return enabled.length > 0 ? enabled : offers;
   }, [listing?.formatOffers]);
+  const bookableOptions = useMemo(
+    () => formatOptions.filter((offer) => isAdFormatActive(offer.adFormat.type)),
+    [formatOptions],
+  );
 
   useEffect(() => {
-    if (formatOptions.length === 0) {
+    if (bookableOptions.length === 0) {
       setSelectedOfferId("");
       return;
     }
 
-    if (!formatOptions.some((offer) => offer.id === selectedOfferId)) {
-      setSelectedOfferId(formatOptions[0].id);
+    if (!bookableOptions.some((offer) => offer.id === selectedOfferId)) {
+      setSelectedOfferId(bookableOptions[0].id);
     }
-  }, [formatOptions, selectedOfferId]);
+  }, [bookableOptions, selectedOfferId]);
 
   const selectedOffer = useMemo(
-    () => formatOptions.find((offer) => offer.id === selectedOfferId) ?? formatOptions[0] ?? null,
-    [formatOptions, selectedOfferId],
+    () => bookableOptions.find((offer) => offer.id === selectedOfferId) ?? bookableOptions[0] ?? null,
+    [bookableOptions, selectedOfferId],
   );
 
   const handleBook = () => {
@@ -161,22 +166,32 @@ export function ListingDetailSheet({
             <div className="space-y-2">
               <Text type="subheadline2" weight="medium">Ad Options</Text>
               <div className="space-y-2 bg-secondary/30 rounded-xl p-3">
-                {listing.formatOffers.map((offer) => (
+                {listing.formatOffers.map((offer) => {
+                  const active = isAdFormatActive(offer.adFormat.type);
+                  const title = formatAdFormatTitle(offer.adFormat.type, offer.adFormat.name);
+                  const typeLabel = getAdFormatDisplay(offer.adFormat.type);
+                  const showTypeLabel = title.trim().toLowerCase() !== typeLabel.trim().toLowerCase();
+                  return (
                   <div
                     key={offer.id}
                     className={`flex items-center justify-between rounded-lg p-2 ${
                       offer.enabled ? "bg-card" : "bg-card/50"
-                    }`}
+                    } ${!active ? "opacity-60" : ""}`}
                   >
                     <div className="min-w-0">
-                      <Text type="caption1" weight="medium">{offer.adFormat.name}</Text>
-                      <Text type="caption2" color="tertiary">{offer.adFormat.type}</Text>
+                      <Text type="caption1" weight="medium">
+                        {title}
+                      </Text>
+                      {showTypeLabel && (
+                        <Text type="caption2" color="tertiary">{typeLabel}</Text>
+                      )}
                     </div>
                     <Text type="caption1" weight="medium">
                       {formatCurrency(offer.effectivePrice, offer.effectiveCurrency)}
                     </Text>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -190,12 +205,15 @@ export function ListingDetailSheet({
                     </SelectTrigger>
                     <SelectContent>
                       {formatOptions.map((offer) => (
-                        <SelectItem key={offer.id} value={offer.id}>
-                          {offer.adFormat.name}
+                        <SelectItem key={offer.id} value={offer.id} disabled={!isAdFormatActive(offer.adFormat.type)}>
+                          {formatAdFormatTitle(offer.adFormat.type, offer.adFormat.name)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <Text type="caption2" color="tertiary">
+                    Only 📝 Post is active for booking right now.
+                  </Text>
                   <div className="bg-card rounded-lg border border-border p-3 text-center">
                     <Text type="caption2" color="secondary">Selected Price</Text>
                     <Text type="title3" weight="bold" className="text-primary">

@@ -1,9 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { AxiosError } from 'axios';
-import { ApiError, UsersService } from '@/shared/api/generated';
+import { UsersService } from '@/shared/api/generated';
 import { http } from '@/shared/api/http';
 import { normalizeRoles, type ActiveRole, type RoleFlags } from '@/features/auth/model/roles';
+import {
+  getApiErrorMessage,
+  isInvalidTelegramInitDataError,
+  TELEGRAM_INIT_DATA_RESTART_MESSAGE,
+} from '@/shared/api/error';
 
 export type { ActiveRole, RoleFlags };
 
@@ -27,6 +31,7 @@ type AuthState = {
   isAuthenticated: boolean;
   onboardingCompleted: boolean;
   isBootstrapping: boolean;
+  initDataInvalid: boolean;
   error: string | null;
   setBootstrapping: (value: boolean) => void;
   clearError: () => void;
@@ -34,6 +39,7 @@ type AuthState = {
   authenticate: (initData: string) => Promise<void>;
   completeOnboarding: (roles: RoleFlags) => Promise<void>;
   updateUser: (data: Partial<AuthUser>) => void;
+  markInitDataInvalid: () => void;
   logout: () => void;
 };
 
@@ -75,37 +81,7 @@ function normalizeUser(raw: unknown, preferredRole: ActiveRole = null): AuthUser
 }
 
 function extractApiErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof AxiosError) {
-    const data = error.response?.data as { error?: unknown; message?: unknown } | undefined;
-
-    if (typeof data?.error === 'string' && data.error.trim()) {
-      return data.error;
-    }
-
-    if (typeof data?.message === 'string' && data.message.trim()) {
-      return data.message;
-    }
-  }
-
-  if (error instanceof ApiError) {
-    const body = error.body as { error?: unknown; message?: unknown } | null;
-
-    if (body && typeof body.error === 'string' && body.error.trim()) {
-      return body.error;
-    }
-
-    if (body && typeof body.message === 'string' && body.message.trim()) {
-      return body.message;
-    }
-
-    return error.message || fallback;
-  }
-
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return fallback;
+  return getApiErrorMessage(error, fallback);
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -118,6 +94,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       onboardingCompleted: false,
       isBootstrapping: true,
+      initDataInvalid: false,
       error: null,
 
       setBootstrapping: (value) => set({ isBootstrapping: value }),
@@ -156,7 +133,7 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
 
-        set({ isBootstrapping: true, error: null });
+        set({ isBootstrapping: true, initDataInvalid: false, error: null });
 
         try {
           const response = await http.post<{ token?: string; user?: unknown }>(
@@ -195,9 +172,11 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
             onboardingCompleted: user.onboardingCompleted,
             isBootstrapping: false,
+            initDataInvalid: false,
             error: null,
           });
         } catch (error: unknown) {
+          const initDataInvalid = isInvalidTelegramInitDataError(error);
           set({
             token: null,
             user: null,
@@ -206,7 +185,10 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             onboardingCompleted: false,
             isBootstrapping: false,
-            error: extractApiErrorMessage(error, 'Authentication failed'),
+            initDataInvalid,
+            error: initDataInvalid
+              ? TELEGRAM_INIT_DATA_RESTART_MESSAGE
+              : extractApiErrorMessage(error, 'Authentication failed'),
           });
         }
       },
@@ -297,6 +279,19 @@ export const useAuthStore = create<AuthState>()(
         });
       },
 
+      markInitDataInvalid: () =>
+        set({
+          token: null,
+          user: null,
+          roles: DEFAULT_ROLES,
+          activeRole: null,
+          isAuthenticated: false,
+          onboardingCompleted: false,
+          isBootstrapping: false,
+          initDataInvalid: true,
+          error: TELEGRAM_INIT_DATA_RESTART_MESSAGE,
+        }),
+
       logout: () =>
         set({
           token: null,
@@ -306,6 +301,7 @@ export const useAuthStore = create<AuthState>()(
           isAuthenticated: false,
           onboardingCompleted: false,
           isBootstrapping: false,
+          initDataInvalid: false,
           error: null,
         }),
     }),
@@ -332,6 +328,7 @@ export const useAuthStore = create<AuthState>()(
           activeRole: normalized.activeRole,
           isAuthenticated: state.isAuthenticated ?? false,
           onboardingCompleted: state.onboardingCompleted ?? false,
+          initDataInvalid: false,
           user: state.user
             ? {
                 ...state.user,

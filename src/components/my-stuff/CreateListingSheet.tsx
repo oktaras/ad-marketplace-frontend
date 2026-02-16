@@ -14,6 +14,7 @@ import type { Channel } from "@/types/marketplace";
 import { createMyChannelFormat, createMyListing, type ChannelFormatItem } from "@/shared/api/my-stuff";
 import { getApiErrorMessage } from "@/shared/api/error";
 import { inAppToasts } from "@/shared/notifications/in-app";
+import { getAdFormatText, isAdFormatActive } from "@/shared/lib/ad-format";
 
 interface CreateListingSheetProps {
   open: boolean;
@@ -28,11 +29,9 @@ const typeByFormat: Record<AdFormatPricing["format"], "POST" | "STORY" | "REPOST
   repost: "REPOST",
 };
 
-const nameByFormat: Record<AdFormatPricing["format"], string> = {
-  post: "Post",
-  story: "Story",
-  repost: "Repost",
-};
+function getDefaultFormatName(format: AdFormatPricing["format"]): string {
+  return getAdFormatText(format);
+}
 
 export function CreateListingSheet({ open, onOpenChange, channels, channelFormatsByChannelId }: CreateListingSheetProps) {
   const queryClient = useQueryClient();
@@ -56,7 +55,7 @@ export function CreateListingSheet({ open, onOpenChange, channels, channelFormat
       availableFormats: ChannelFormatItem[];
     }) => {
       const availableByType = new Map(payload.availableFormats.map((format) => [format.type, format]));
-      const enabledFormats = payload.formats.filter((format) => format.enabled);
+      const enabledFormats = payload.formats.filter((format) => format.enabled && isAdFormatActive(format.format));
 
       for (const format of enabledFormats) {
         const backendType = typeByFormat[format.format];
@@ -66,13 +65,13 @@ export function CreateListingSheet({ open, onOpenChange, channels, channelFormat
 
         const created = await createMyChannelFormat(payload.channelId, {
           type: backendType,
-          name: nameByFormat[format.format],
+          name: getDefaultFormatName(format.format),
           priceAmount: Math.max(0, format.price).toString(),
           priceCurrency: payload.currency,
         });
 
         if (!created) {
-          throw new Error(`Failed to create ${nameByFormat[format.format]} format for selected channel.`);
+          throw new Error(`Failed to create ${getDefaultFormatName(format.format)} format for selected channel.`);
         }
 
         availableByType.set(backendType, created);
@@ -90,7 +89,7 @@ export function CreateListingSheet({ open, onOpenChange, channels, channelFormat
             adFormatId: channelFormat.id,
             customPrice: Math.max(0, format.price).toString(),
             customCurrency: payload.currency,
-            enabled: format.enabled,
+            enabled: format.enabled && isAdFormatActive(format.format),
           };
         })
         .filter((offer): offer is NonNullable<typeof offer> => offer !== null);

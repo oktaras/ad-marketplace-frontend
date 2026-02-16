@@ -199,7 +199,7 @@ export function mapDiscoveryChannel(
   const primaryCategory = channel.categories?.[0];
   const primarySlug = primaryCategory?.slug || "general";
   const enrichedCategory = categoryBySlug.get(primarySlug);
-  const channelAvatarUrl = getTelegramChannelAvatarUrl(channel.username);
+  const channelAvatarUrl = getTelegramChannelAvatarUrl(channel.username, channel.updatedAt);
   const mainFormat = channel.formats?.[0];
   const adFormats = (channel.formats ?? [])
     .map((format) => {
@@ -244,7 +244,6 @@ export function mapDiscoveryBrief(
 ): Brief {
   const primarySlug = brief.targetCategories?.[0] || "general";
   const enrichedCategory = categoryBySlug.get(primarySlug);
-  const advertiserName = brief.advertiser?.firstName || brief.advertiser?.username || "Advertiser";
   const targetSubscribers = brief.minSubscribers ?? brief.maxSubscribers ?? 0;
 
   const normalizedStatus = mapBriefStatus(brief.status);
@@ -253,8 +252,8 @@ export function mapDiscoveryBrief(
     id: brief.id,
     title: brief.title || "Untitled brief",
     advertiserId: brief.advertiser?.id || undefined,
-    advertiserName,
-    advertiserAvatar: enrichedCategory?.icon || "📢",
+    advertiserName: "Advertiser",
+    advertiserAvatar: "👤",
     category: primarySlug,
     categoryLabel: enrichedCategory?.name || formatCategoryLabel(primarySlug),
     categoryIcon: enrichedCategory?.icon || undefined,

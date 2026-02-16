@@ -6,6 +6,7 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { AppProviders } from '@/app/providers/AppProviders';
 import { TelegramBackButton } from '@/app/router/TelegramBackButton';
 import { TelegramSettingsButton } from '@/app/router/TelegramSettingsButton';
+import { DeepLinkHandler } from '@/app/router/DeepLinkHandler';
 
 // Pages
 import Home from '@/pages/Home';
@@ -58,7 +59,9 @@ function App() {
             <RoleProvider>
               <TelegramBackButton />
               <TelegramSettingsButton />
-              <AppRoutes />
+              <DeepLinkHandler>
+                <AppRoutes />
+              </DeepLinkHandler>
               <Toaster />
             </RoleProvider>
           </LanguageProvider>

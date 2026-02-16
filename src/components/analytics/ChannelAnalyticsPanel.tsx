@@ -318,22 +318,22 @@ export function ChannelAnalyticsPanel({
   return (
     <div className="space-y-4">
       {showActionBar ? (
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex items-center gap-2 flex-nowrap">
           <Button
             variant="outline"
-            size="sm"
+            className={showRefreshButton && onQueueRefresh ? "flex-1 min-w-0" : "w-full"}
             onClick={() => {
               void analyticsQuery.refetch();
               void graphsQuery.refetch();
             }}
             disabled={analyticsQuery.isFetching || graphsQuery.isFetching}
           >
-            Reload
+            Reload data
           </Button>
           {showRefreshButton && onQueueRefresh ? (
-            <Button size="sm" onClick={onQueueRefresh} disabled={refreshLoading}>
+            <Button className="flex-1 min-w-0" onClick={onQueueRefresh} disabled={refreshLoading}>
               <RefreshCcw className={`h-4 w-4 ${refreshLoading ? "animate-spin" : ""}`} />
-              Refresh
+              Sync analythics
             </Button>
           ) : null}
         </div>

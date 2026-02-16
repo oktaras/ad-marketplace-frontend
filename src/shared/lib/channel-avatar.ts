@@ -11,13 +11,21 @@ export function normalizeTelegramUsername(username: string | null | undefined): 
   return /^[A-Za-z0-9_]{5,32}$/.test(normalized) ? normalized : null;
 }
 
-export function getTelegramChannelAvatarUrl(username: string | null | undefined): string | null {
+export function getTelegramChannelAvatarUrl(
+  username: string | null | undefined,
+  version?: string | null,
+): string | null {
   const normalized = normalizeTelegramUsername(username);
   if (!normalized) {
     return null;
   }
 
-  return `https://t.me/i/userpic/320/${encodeURIComponent(normalized)}.jpg`;
+  const baseUrl = `https://t.me/i/userpic/320/${encodeURIComponent(normalized)}.jpg`;
+  if (!version) {
+    return baseUrl;
+  }
+
+  return `${baseUrl}?v=${encodeURIComponent(version)}`;
 }
 
 export function isLikelyRemoteImageUrl(value: string | null | undefined): boolean {

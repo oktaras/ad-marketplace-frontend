@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { HorizontalScrollRow } from "@/components/common/HorizontalScrollRow";
 
 interface CategoryFilterProps {
   categories: Array<{
@@ -27,9 +28,9 @@ export function CategoryFilter({ categories, selected, onSelect, loading = false
   };
 
   return (
-    <div
-      className="flex gap-2 overflow-x-auto scrollbar-hide py-3 px-4 -mx-4"
-      style={{ WebkitOverflowScrolling: "touch" }}
+    <HorizontalScrollRow
+      scrollClassName="py-3"
+      contentClassName="flex gap-2"
     >
       <button
         onClick={() => onSelect([])}
@@ -55,6 +56,6 @@ export function CategoryFilter({ categories, selected, onSelect, loading = false
           </button>
         );
       })}
-    </div>
+    </HorizontalScrollRow>
   );
 }

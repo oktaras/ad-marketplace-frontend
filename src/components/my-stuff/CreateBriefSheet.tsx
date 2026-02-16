@@ -8,6 +8,7 @@ import { BriefPreviewCard } from "@/components/discovery/BriefPreviewCard";
 import { ChannelCategory } from "@/types/marketplace";
 import { CurrencySelector } from "@/components/common/CurrencySelector";
 import { CryptoCurrency, DEFAULT_CURRENCY } from "@/types/currency";
+import { getAdFormatDisplay, isAdFormatActive } from "@/shared/lib/ad-format";
 
 interface CreateBriefSheetProps {
   open: boolean;
@@ -27,11 +28,11 @@ export interface CreateBriefFormData {
   description: string;
 }
 
-const formats = [
-  { value: "post" as const, label: "Post", emoji: "📝" },
-  { value: "story" as const, label: "Story", emoji: "📱" },
-  { value: "repost" as const, label: "Repost", emoji: "🔄" },
-];
+const formats = ["post", "story", "repost"] as const;
+const CREATE_BRIEF_CURRENCY_OPTIONS = [
+  { value: "TON", label: "TON", icon: "💎" },
+  { value: "USDT", label: "USDT", icon: "💵", disabled: true },
+] as const;
 
 export function CreateBriefSheet({ open, onOpenChange, onCreate, isSubmitting = false }: CreateBriefSheetProps) {
   const [form, setForm] = useState<CreateBriefFormData>({
@@ -120,26 +121,37 @@ export function CreateBriefSheet({ open, onOpenChange, onCreate, isSubmitting = 
           <div className="space-y-1.5">
             <SectionLabel>Ad Format *</SectionLabel>
             <div className="flex gap-2">
-              {formats.map((f) => (
+              {formats.map((f) => {
+                const active = isAdFormatActive(f);
+                return (
                 <button
-                  key={f.value}
-                  onClick={() => setForm({ ...form, format: f.value })}
-                  aria-pressed={form.format === f.value}
+                  key={f}
+                  onClick={() => {
+                    if (!active) return;
+                    setForm({ ...form, format: f });
+                  }}
+                  disabled={!active}
+                  aria-pressed={form.format === f}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-medium transition-all border ${
-                    form.format === f.value
+                    form.format === f
                       ? "bg-primary text-primary-foreground border-primary"
                       : "bg-card text-muted-foreground border-border"
-                  }`}
+                  } disabled:opacity-55 disabled:cursor-not-allowed`}
                 >
-                  <span>{f.emoji}</span> {f.label}
+                  {getAdFormatDisplay(f)}
                 </button>
-              ))}
+                );
+              })}
             </div>
           </div>
 
           {/* Budget & Min Subscribers row */}
           <div className="space-y-2">
-            <CurrencySelector value={form.currency} onChange={(c) => setForm({ ...form, currency: c })} />
+            <CurrencySelector
+              value={form.currency}
+              onChange={(c) => setForm({ ...form, currency: c })}
+              options={CREATE_BRIEF_CURRENCY_OPTIONS}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

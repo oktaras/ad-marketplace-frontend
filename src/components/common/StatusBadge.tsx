@@ -46,7 +46,14 @@ export function StatusBadge({ label, variant = "muted", icon, dot = true, classN
         className
       )}
     >
-      {dot && <span className={cn("w-1.5 h-1.5 rounded-full flex-shrink-0", styles.dot)} />}
+      {dot && (
+        <span
+          className={cn(
+            "w-1.5 h-1.5 rounded-full flex-shrink-0 ring-1 ring-black/10 dark:ring-white/20",
+            styles.dot,
+          )}
+        />
+      )}
       {icon && !dot && <span>{icon}</span>}
       {label}
     </span>

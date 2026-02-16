@@ -159,6 +159,7 @@ export interface Deal {
   id: string;
   briefId?: string;
   briefTitle?: string;
+  briefDescription?: string;
   channelId: string;
   channelName: string;
   channelAvatar: string;
@@ -210,6 +211,8 @@ export interface DealFinanceData {
   status: DealStatus;
   agreedPrice: number;
   currency: string;
+  platformFeeBps?: number;
+  platformFeePercent?: number;
   platformFeeAmount: number;
   publisherAmount: number;
   escrowStatus?: DealEscrowStatus;

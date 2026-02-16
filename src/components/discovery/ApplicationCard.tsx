@@ -20,6 +20,7 @@ export interface BriefApplicationCardItem {
   message: string;
   status: "pending" | "accepted" | "rejected";
   appliedAt: string;
+  proposedAdTypes: string[];
 }
 
 interface ApplicationCardProps {
@@ -107,6 +108,24 @@ export function ApplicationCard({
       </div>
 
       {/* Message */}
+      <div className="space-y-1">
+        <Text type="caption2" color="tertiary">Proposed Ad Type</Text>
+        {application.proposedAdTypes.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {application.proposedAdTypes.map((formatLabel) => (
+              <span
+                key={`${application.id}-${formatLabel}`}
+                className="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary text-xs font-medium text-muted-foreground"
+              >
+                {formatLabel}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <Text type="caption1" color="secondary">Not specified</Text>
+        )}
+      </div>
+
       <div className="bg-secondary/30 rounded-lg p-3">
         <Text type="caption1">{application.message}</Text>
       </div>

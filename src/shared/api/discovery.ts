@@ -73,6 +73,7 @@ export type DiscoveryChannel = {
   description: string | null;
   language: string;
   isVerified: boolean;
+  updatedAt?: string;
   categories: Array<{
     slug: string;
     name: string;

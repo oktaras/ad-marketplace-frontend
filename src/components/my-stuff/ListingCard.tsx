@@ -1,21 +1,15 @@
 import { Listing } from "@/types/listing";
 import { Text } from "@telegram-tools/ui-kit";
-import { Eye, MessageSquare, ChevronRight } from "lucide-react";
+import { Eye, MessageSquare, Settings } from "lucide-react";
 import { ChannelAvatar } from "@/components/common/ChannelAvatar";
+import { getAdFormatDisplay } from "@/shared/lib/ad-format";
+import { StatusBadge, StatusBadgeVariant } from "@/components/common/StatusBadge";
+import { LISTING_STATUS_CONFIG } from "@/shared/constants/marketplace-status";
 
 interface ListingCardProps {
   listing: Listing;
   onClick?: () => void;
 }
-
-import { StatusBadge, StatusBadgeVariant } from "@/components/common/StatusBadge";
-import { LISTING_STATUS_CONFIG } from "@/shared/constants/marketplace-status";
-
-const formatEmoji: Record<string, string> = {
-  post: "📝",
-  story: "📱",
-  repost: "🔄",
-};
 
 export function ListingCard({ listing, onClick }: ListingCardProps) {
   const status = LISTING_STATUS_CONFIG[listing.status] ?? ({ label: listing.status, variant: "muted" as StatusBadgeVariant });
@@ -30,10 +24,7 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
     : `${lowestPrice}–${highestPrice}${singleCurrency ? ` ${singleCurrency}` : ""}`;
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-left bg-card rounded-xl border border-border p-4 transition-all active:scale-[0.98] hover:border-muted-foreground/30"
-    >
+    <div className="w-full text-left bg-card rounded-xl border border-border p-4 transition-all hover:border-muted-foreground/30 space-y-3">
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -51,7 +42,6 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <StatusBadge label={status.label} variant={status.variant} dot />
-          <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </div>
       </div>
 
@@ -59,7 +49,7 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
       <div className="flex items-center gap-2 mb-2">
         {visibleFormats.map((f) => (
           <span key={f.format} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-xs font-medium text-muted-foreground">
-            {formatEmoji[f.format]} {f.format.charAt(0).toUpperCase() + f.format.slice(1)}
+            {getAdFormatDisplay(f.format)}
           </span>
         ))}
       </div>
@@ -78,6 +68,15 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
           <Text type="caption1" color="secondary">{listing.inquiries} inquiries</Text>
         </div>
       </div>
-    </button>
+
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-secondary text-foreground text-sm font-medium transition-colors hover:bg-secondary/80"
+      >
+        <Settings className="h-4 w-4" />
+        Manage Listing
+      </button>
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import { Text } from "@telegram-tools/ui-kit";
 import { CheckCircle2, Circle, Clock, Copy, ExternalLink } from "lucide-react";
 import { BackendDealStatus, Deal, DEAL_STATUS_CONFIG, type CreativeMedia, type InlineButton } from "@/types/deal";
 import { AppSheet } from "@/components/common/AppSheet";
+import { HorizontalScrollRow } from "@/components/common/HorizontalScrollRow";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { formatCurrency } from "@/lib/format";
 import { useRole } from "@/contexts/RoleContext";
@@ -19,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { env } from "@/app/config/env";
-import { ChannelAvatar } from "@/components/common/ChannelAvatar";
+import { getAdFormatDisplay } from "@/shared/lib/ad-format";
 import {
   getDealActivity,
   getDealCreative,
@@ -275,6 +276,8 @@ export function DealDetailSheet({
 
   const statusCfg = DEAL_STATUS_CONFIG[deal.status];
   const chatStatusHint = getChatStatusHint(deal);
+  const briefTitle = deal.briefTitle || "Brief";
+  const briefDescription = deal.briefDescription?.trim() || "No brief description";
 
   const handleSubmitCreative = (data: {
     text: string;
@@ -356,57 +359,45 @@ export function DealDetailSheet({
   return (
     <AppSheet open={open} onOpenChange={onOpenChange} title="Deal Details" fullHeight>
       <Tabs value={tab} onValueChange={(next) => setTab(next as DealDetailsTab)} className="space-y-4">
-        <div className="overflow-x-auto -mx-4 px-4">
-          <TabsList className="w-max min-w-full justify-start gap-1 bg-secondary/60">
+        <HorizontalScrollRow bleed={false} showEdgeFade={false} wrapContent={false}>
+          <TabsList className="w-max min-w-full justify-between gap-1 bg-secondary/60 !h-auto !p-0.5">
             {TAB_LABELS.map((tabOption) => (
-              <TabsTrigger key={tabOption.id} value={tabOption.id} className="text-xs sm:text-sm">
+              <TabsTrigger
+                key={tabOption.id}
+                value={tabOption.id}
+                className="!h-7 !px-1 !py-1 text-xs sm:text-sm !shrink-0"
+              >
                 {tabOption.label}
               </TabsTrigger>
             ))}
           </TabsList>
-        </div>
+        </HorizontalScrollRow>
 
         <TabsContent value="overview" className="space-y-5">
           <div className="bg-card rounded-xl border border-border p-4 space-y-3">
             <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-2xl">
-                  <ChannelAvatar
-                    avatar={role === "advertiser" ? deal.channelAvatar : deal.advertiserAvatar}
-                    name={role === "advertiser" ? deal.channelName : deal.advertiserName}
-                    fallback="👤"
-                    className="h-full w-full text-2xl"
-                  />
+              <div className="min-w-0 flex-1 pr-3">
+                <Text type="caption1" color="secondary">Brief</Text>
+                <div className="mt-0.5">
+                  <Text type="body" weight="medium">{briefTitle}</Text>
                 </div>
-                <div>
-                  <Text type="body" weight="medium">
-                    {role === "advertiser" ? deal.channelName : deal.advertiserName}
-                  </Text>
-                  <Text type="caption1" color="secondary">
-                    {role === "advertiser" ? deal.channelUsername : "Advertiser"}
-                  </Text>
+                <div className="mt-1">
+                  <Text type="caption1" color="secondary">{briefDescription}</Text>
                 </div>
               </div>
               <StatusBadge label={statusCfg.label} icon={statusCfg.emoji} variant={statusCfg.badgeVariant ?? "muted"} />
             </div>
 
-            {deal.briefTitle ? (
-              <div className="bg-secondary/50 rounded-lg px-3 py-2">
-                <Text type="caption1" color="secondary">Brief</Text>
-                <Text type="subheadline1" weight="medium">{deal.briefTitle}</Text>
-              </div>
-            ) : null}
-
             <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="bg-secondary/50 rounded-lg py-2">
+              <div className="bg-secondary/50 rounded-lg px-3 py-2">
                 <Text type="caption2" color="secondary">Price</Text>
                 <Text type="subheadline1" weight="medium">{formatCurrency(deal.agreedPrice, deal.currency)}</Text>
               </div>
-              <div className="bg-secondary/50 rounded-lg py-2">
+              <div className="bg-secondary/50 rounded-lg px-3 py-2">
                 <Text type="caption2" color="secondary">Format</Text>
-                <Text type="subheadline1" weight="medium"><span className="capitalize">{deal.format}</span></Text>
+                <Text type="subheadline1" weight="medium">{getAdFormatDisplay(deal.format)}</Text>
               </div>
-              <div className="bg-secondary/50 rounded-lg py-2">
+              <div className="bg-secondary/50 rounded-lg px-3 py-2">
                 <Text type="caption2" color="secondary">Created</Text>
                 <Text type="subheadline1" weight="medium">{formatDateLabel(deal.createdAt)}</Text>
               </div>
@@ -447,11 +438,11 @@ export function DealDetailSheet({
 
         <TabsContent value="creative" className="space-y-4">
           {creativeQuery.isLoading ? (
-            <div className="text-center py-6 bg-secondary/30 rounded-xl">
+            <div className="bg-secondary/40 rounded-lg px-3 py-2">
               <Text type="caption1" color="secondary">Loading creative…</Text>
             </div>
           ) : creativeQuery.isError ? (
-            <div className="text-center py-6 bg-secondary/30 rounded-xl">
+            <div className="bg-secondary/40 rounded-lg px-3 py-2">
               <Text type="caption1" color="secondary">Could not load creative tab</Text>
             </div>
           ) : (
@@ -461,7 +452,7 @@ export function DealDetailSheet({
               </Text>
 
               {creativeSubmissions.length === 0 && !showSubmitCreative ? (
-                <div className="text-center py-6 bg-secondary/30 rounded-xl">
+                <div className="bg-secondary/40 rounded-lg px-3 py-2">
                   <Text type="caption1" color="secondary">No creative submitted yet</Text>
                 </div>
               ) : null}
@@ -492,11 +483,11 @@ export function DealDetailSheet({
 
         <TabsContent value="posting-plan" className="space-y-4">
           {postingPlanQuery.isLoading ? (
-            <div className="text-center py-6 bg-secondary/30 rounded-xl">
+            <div className="bg-secondary/40 rounded-lg px-3 py-2">
               <Text type="caption1" color="secondary">Loading posting plan…</Text>
             </div>
           ) : postingPlanQuery.isError ? (
-            <div className="text-center py-6 bg-secondary/30 rounded-xl">
+            <div className="bg-secondary/40 rounded-lg px-3 py-2">
               <Text type="caption1" color="secondary">Could not load posting plan</Text>
             </div>
           ) : (
@@ -524,6 +515,8 @@ export function DealDetailSheet({
               <EscrowStatusPanel
                 deal={financeDeal ?? deal}
                 role={role}
+                platformFeeBps={financeData?.platformFeeBps}
+                platformFeePercent={financeData?.platformFeePercent}
                 platformFeeAmount={financeData?.platformFeeAmount}
                 publisherAmount={financeData?.publisherAmount}
                 onFundDeal={onFundDeal}
@@ -541,12 +534,6 @@ export function DealDetailSheet({
                       {financeData?.escrowWallet?.contractAddress || "Not deployed yet"}
                     </Text>
                   </div>
-                  <div className="bg-secondary/50 rounded-lg px-3 py-2">
-                    <Text type="caption2" color="secondary">Cached Balance</Text>
-                    <Text type="caption1" weight="medium">
-                      {financeData?.escrowWallet?.cachedBalance ?? "—"}
-                    </Text>
-                  </div>
                 </div>
 
                 <div className="flex gap-2">
@@ -561,7 +548,7 @@ export function DealDetailSheet({
                     disabled={!financeData?.escrowWallet?.contractAddress}
                   >
                     <Copy className="w-4 h-4" />
-                    Copy Escrow Address
+                    Copy Address
                   </Button>
                   <Button
                     variant="outline"

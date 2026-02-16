@@ -350,6 +350,17 @@ export const inAppToasts = {
       description,
       variant: "destructive",
     } satisfies InAppToast),
+    profileRefreshSuccess: {
+      id: "A07",
+      title: "Channel profile refreshed",
+      description: "Latest name, description, and logo were synced from Telegram.",
+    } satisfies InAppToast,
+    profileRefreshFailed: (description: string) => ({
+      id: "A07",
+      title: "Could not refresh channel profile",
+      description,
+      variant: "destructive",
+    } satisfies InAppToast),
     channelUpdated: {
       id: "A07",
       title: "Channel updated",
@@ -358,6 +369,17 @@ export const inAppToasts = {
     channelUpdateFailed: (description: string) => ({
       id: "A07",
       title: "Could not update channel",
+      description,
+      variant: "destructive",
+    } satisfies InAppToast),
+    channelDeleted: {
+      id: "A07",
+      title: "Channel removed",
+      description: "Channel has been removed from your account.",
+    } satisfies InAppToast,
+    channelDeleteFailed: (description: string) => ({
+      id: "A07",
+      title: "Could not remove channel",
       description,
       variant: "destructive",
     } satisfies InAppToast),

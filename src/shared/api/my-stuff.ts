@@ -60,6 +60,10 @@ type DeleteMyBriefResponse = {
   deleted?: boolean;
 };
 
+type DeleteMyChannelResponse = {
+  deleted?: boolean;
+};
+
 export type MyBriefApplicationItem = {
   id: string;
   briefId: string;
@@ -176,6 +180,17 @@ type MyListingsResponse = {
 type RefreshChannelStatsResponse = {
   message?: string;
   jobId?: string;
+};
+
+type RefreshChannelProfileResponse = {
+  message?: string;
+  channel?: {
+    id?: string;
+    username?: string | null;
+    title?: string;
+    description?: string | null;
+    updatedAt?: string;
+  };
 };
 
 type VerifyAndAddChannelResponse = {
@@ -467,6 +482,16 @@ export async function refreshMyChannelStats(channelId: string): Promise<RefreshC
   return response;
 }
 
+export async function refreshMyChannelProfile(channelId: string): Promise<RefreshChannelProfileResponse> {
+  const response = await request(OpenAPI, {
+    method: "POST",
+    url: "/api/channels/{id}/profile/refresh",
+    path: { id: channelId },
+  }) as RefreshChannelProfileResponse;
+
+  return response;
+}
+
 export async function verifyAndAddMyChannel(payload: VerifyAndAddChannelPayload): Promise<VerifyAndAddChannelResponse> {
   const response = await request(OpenAPI, {
     method: "POST",
@@ -486,6 +511,16 @@ export async function updateMyChannel(channelId: string, payload: UpdateMyChanne
   }) as ChannelMutationResponse;
 
   return response.channel?.id ?? null;
+}
+
+export async function deleteMyChannel(channelId: string): Promise<boolean> {
+  const response = await request(OpenAPI, {
+    method: "DELETE",
+    url: "/api/channels/{id}",
+    path: { id: channelId },
+  }) as DeleteMyChannelResponse;
+
+  return Boolean(response.deleted);
 }
 
 export async function getMyChannelFormats(channelId: string): Promise<ChannelFormatItem[]> {

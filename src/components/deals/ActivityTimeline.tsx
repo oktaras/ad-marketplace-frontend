@@ -3,6 +3,7 @@ import { Text } from "@telegram-tools/ui-kit";
 import { AlertCircle, CheckCircle2, MessageCircle, Send, Settings2 } from "lucide-react";
 import type { DealActivityData, DealActivityType } from "@/types/deal";
 import { cn } from "@/lib/utils";
+import { HorizontalScrollRow } from "@/components/common/HorizontalScrollRow";
 
 type ActivityFilter = "all" | DealActivityType;
 
@@ -63,8 +64,7 @@ export function ActivityTimeline({ activity, loading = false }: ActivityTimeline
         ) : null}
       </div>
 
-      <div className="overflow-x-auto -mx-1 px-1">
-        <div className="flex gap-2 min-w-min">
+      <HorizontalScrollRow contentClassName="flex gap-2">
           {FILTER_OPTIONS.map((option) => {
             const active = filter === option.id;
             return (
@@ -81,10 +81,9 @@ export function ActivityTimeline({ activity, loading = false }: ActivityTimeline
               >
                 {option.label}
               </button>
-            );
-          })}
-        </div>
-      </div>
+              );
+            })}
+      </HorizontalScrollRow>
 
       {loading ? (
         <div className="text-center py-6 bg-secondary/30 rounded-xl">

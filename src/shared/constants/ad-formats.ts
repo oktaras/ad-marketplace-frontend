@@ -1,18 +1,20 @@
 import { SUPPORTED_CURRENCIES } from '@/types/currency';
+import { getAdFormatDisplay, isAdFormatActive } from '@/shared/lib/ad-format';
 
 export type AdFormatType = 'POST' | 'STORY' | 'REPOST' | 'PINNED' | 'OTHER';
 
 export type AdFormatOption = {
   value: AdFormatType;
   label: string;
+  disabled?: boolean;
 };
 
 export const AD_FORMAT_OPTIONS: AdFormatOption[] = [
-  { value: 'POST', label: 'Post' },
-  { value: 'STORY', label: 'Story' },
-  { value: 'REPOST', label: 'Repost' },
-  { value: 'PINNED', label: 'Pinned post' },
-  { value: 'OTHER', label: 'Other' },
+  { value: 'POST', label: getAdFormatDisplay('POST'), disabled: !isAdFormatActive('POST') },
+  { value: 'STORY', label: getAdFormatDisplay('STORY'), disabled: !isAdFormatActive('STORY') },
+  { value: 'REPOST', label: getAdFormatDisplay('REPOST'), disabled: !isAdFormatActive('REPOST') },
+  { value: 'PINNED', label: getAdFormatDisplay('PINNED'), disabled: !isAdFormatActive('PINNED') },
+  { value: 'OTHER', label: getAdFormatDisplay('OTHER'), disabled: !isAdFormatActive('OTHER') },
 ];
 
 export const AD_FORMAT_DURATION_OPTIONS: Array<{ value: number; label: string }> = [

@@ -329,7 +329,7 @@ export function PostingPlanPanel({ dealId, plan, role, availableActions, onUpdat
       )}
 
       {!isAgreed && plan.proposals.length === 0 && !canPropose && (
-        <div className="text-center py-4 bg-secondary/30 rounded-xl">
+        <div className="bg-secondary/40 rounded-lg px-3 py-2">
           <Text type="caption1" color="secondary">Posting plan becomes available after creative approval.</Text>
         </div>
       )}

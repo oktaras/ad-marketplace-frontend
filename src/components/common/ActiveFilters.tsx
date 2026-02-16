@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HorizontalScrollRow } from "@/components/common/HorizontalScrollRow";
 
 export interface ActiveFilterChip {
   /** Unique key for the filter */
@@ -21,7 +22,11 @@ export function ActiveFilters({ filters, onClearAll, className }: ActiveFiltersP
   if (filters.length === 0) return null;
 
   return (
-    <div className={cn("flex items-center gap-2 overflow-x-auto scrollbar-hide py-1", className)}>
+    <HorizontalScrollRow
+      className={className}
+      scrollClassName="py-1"
+      contentClassName="flex items-center gap-2"
+    >
       {filters.map((f) => (
         <span
           key={f.key}
@@ -45,6 +50,6 @@ export function ActiveFilters({ filters, onClearAll, className }: ActiveFiltersP
           Clear all
         </button>
       )}
-    </div>
+    </HorizontalScrollRow>
   );
 }

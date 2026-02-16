@@ -18,28 +18,13 @@ import { useAuthStore } from "@/features/auth/model/auth.store";
 import { inAppToasts } from "@/shared/notifications/in-app";
 import { normalizeCurrency } from "@/types/currency";
 import { getTelegramChannelAvatarUrl } from "@/shared/lib/channel-avatar";
+import { formatAdFormatTitle, isAdFormatActive } from "@/shared/lib/ad-format";
 
 interface BriefApplySheetProps {
   brief: Brief | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
-const AD_FORMAT_LABELS: Record<string, string> = {
-  POST: "Post",
-  STORY: "Story",
-  REPOST: "Repost",
-  PINNED: "Pinned Post",
-  OTHER: "Custom Format",
-};
-
-const AD_FORMAT_EMOJIS: Record<string, string> = {
-  POST: "📝",
-  STORY: "📱",
-  REPOST: "🔄",
-  PINNED: "📌",
-  OTHER: "✨",
-};
 
 function normalizeAdFormatType(value: string | null | undefined): string {
   return (value || "").trim().toUpperCase();
@@ -88,7 +73,7 @@ function mapBriefFormatToAdFormatType(format: Brief["format"]): string {
 function mapApiChannelToSelectChannel(channel: DiscoveryChannel): Channel {
   const primaryCategory = channel.categories?.[0];
   const primaryFormat = channel.formats?.[0];
-  const channelAvatarUrl = getTelegramChannelAvatarUrl(channel.username);
+  const channelAvatarUrl = getTelegramChannelAvatarUrl(channel.username, channel.updatedAt);
   const adFormats = (channel.formats ?? [])
     .map((format) => {
       const normalizedType = String(format.type || "").toLowerCase();
@@ -122,13 +107,6 @@ function mapApiChannelToSelectChannel(channel: DiscoveryChannel): Channel {
     language: (channel.language || "EN").toUpperCase(),
     adFormats,
   };
-}
-
-function formatAdFormatTitle(type: string, customName: string): string {
-  const normalizedType = normalizeAdFormatType(type);
-  const fallbackName = customName?.trim() || AD_FORMAT_LABELS[normalizedType] || "Format";
-  const emoji = AD_FORMAT_EMOJIS[normalizedType] || "🎯";
-  return `${emoji} ${fallbackName}`;
 }
 
 export function BriefApplySheet({ brief, open, onOpenChange }: BriefApplySheetProps) {
@@ -203,6 +181,10 @@ export function BriefApplySheet({ brief, open, onOpenChange }: BriefApplySheetPr
         .filter((format) => requestedTypeSet.has(format.normalizedType)),
     [selectedApiChannel, requestedTypeSet],
   );
+  const selectableFormats = useMemo(
+    () => availableFormats.filter((format) => isAdFormatActive(format.normalizedType)),
+    [availableFormats],
+  );
 
   const targetSubscribers = briefDetailsQuery.data?.minSubscribers
     ?? briefDetailsQuery.data?.maxSubscribers
@@ -245,13 +227,13 @@ export function BriefApplySheet({ brief, open, onOpenChange }: BriefApplySheetPr
 
     setSelectedFormatIds((previous) => {
       const previousSet = new Set(previous);
-      const persistedSelection = availableFormats
+      const persistedSelection = selectableFormats
         .filter((format) => previousSet.has(format.id))
         .map((format) => format.id);
 
       return persistedSelection.length > 0
         ? persistedSelection
-        : availableFormats.map((format) => format.id);
+        : selectableFormats.map((format) => format.id);
     });
 
     setFormatPrices((previous) => {
@@ -266,7 +248,7 @@ export function BriefApplySheet({ brief, open, onOpenChange }: BriefApplySheetPr
 
       return nextPrices;
     });
-  }, [selectedChannelId, availableFormats]);
+  }, [selectedChannelId, availableFormats, selectableFormats]);
 
   const selectedFormatPrices = useMemo(() => {
     const mapped: Record<string, string> = {};
@@ -367,10 +349,6 @@ export function BriefApplySheet({ brief, open, onOpenChange }: BriefApplySheetPr
 
   const resolvedCurrency = normalizeCurrency(briefDetailsQuery.data?.currency || brief?.currency);
   const resolvedDeadline = briefDetailsQuery.data?.desiredEndDate || brief?.deadline || new Date().toISOString();
-  const resolvedAdvertiserName = briefDetailsQuery.data?.advertiser?.firstName
-    || briefDetailsQuery.data?.advertiser?.username
-    || brief?.advertiserName
-    || "Advertiser";
   const isOwnBrief = Boolean(
     currentUserId
     && (
@@ -411,6 +389,11 @@ export function BriefApplySheet({ brief, open, onOpenChange }: BriefApplySheetPr
   };
 
   const toggleFormat = (formatId: string) => {
+    const format = availableFormats.find((entry) => entry.id === formatId);
+    if (!format || !isAdFormatActive(format.normalizedType)) {
+      return;
+    }
+
     setSelectedFormatIds((previous) =>
       previous.includes(formatId)
         ? previous.filter((id) => id !== formatId)
@@ -432,14 +415,9 @@ export function BriefApplySheet({ brief, open, onOpenChange }: BriefApplySheetPr
       <div className="space-y-6">
         {/* Brief header */}
         <div className="space-y-2">
-          <div className="flex items-start gap-3">
-            <div className="w-11 h-11 rounded-full bg-secondary flex items-center justify-center text-xl flex-shrink-0">
-              {brief.advertiserAvatar}
-            </div>
-            <div className="flex-1 min-w-0">
-              <Text type="title3" weight="medium">{brief.title}</Text>
-              <Text type="caption1" color="secondary">{resolvedAdvertiserName}</Text>
-            </div>
+          <div>
+            <Text type="title3" weight="medium">{brief.title}</Text>
+            <Text type="caption1" color="secondary">Advertiser</Text>
           </div>
           <BriefMetaRow
             category={brief.category}
@@ -572,6 +550,7 @@ export function BriefApplySheet({ brief, open, onOpenChange }: BriefApplySheetPr
                   <div className="space-y-2">
                     {availableFormats.map((format) => {
                       const selected = selectedFormatIds.includes(format.id);
+                      const active = isAdFormatActive(format.normalizedType);
                       const invalid = selected && (
                         !formatPrices[format.id]
                         || Number(formatPrices[format.id]) <= 0
@@ -584,14 +563,15 @@ export function BriefApplySheet({ brief, open, onOpenChange }: BriefApplySheetPr
                             selected
                               ? "border-border bg-card"
                               : "border-border/50 bg-secondary/30 opacity-60"
-                          }`}
+                          } ${!active ? "opacity-60" : ""}`}
                         >
                           <button
                             onClick={() => toggleFormat(format.id)}
+                            disabled={!active}
                             aria-pressed={selected}
                             className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                               selected ? "border-primary bg-primary" : "border-muted-foreground"
-                            }`}
+                            } ${!active ? "cursor-not-allowed" : ""}`}
                           >
                             {selected && <span className="text-primary-foreground text-xs">✓</span>}
                           </button>
@@ -607,7 +587,7 @@ export function BriefApplySheet({ brief, open, onOpenChange }: BriefApplySheetPr
                               step="0.01"
                               value={formatPrices[format.id] || ""}
                               onChange={(event) => updateFormatPrice(format.id, event.target.value)}
-                              disabled={!selected}
+                              disabled={!selected || !active}
                               placeholder="0"
                               className={`w-24 h-9 px-2 rounded-lg bg-secondary border-0 text-sm text-foreground text-right focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 ${
                                 invalid ? "ring-1 ring-destructive" : ""

@@ -16,14 +16,8 @@ export function BriefCard({ brief, onClick }: BriefCardProps) {
       className="w-full text-left bg-card rounded-xl border border-border p-4 transition-all active:scale-[0.98] hover:border-muted-foreground/30"
     >
       {/* Header */}
-      <div className="flex items-start gap-3 mb-2">
-        <div className="w-11 h-11 rounded-full bg-secondary flex items-center justify-center text-xl flex-shrink-0">
-          {brief.advertiserAvatar}
-        </div>
-        <div className="flex-1 min-w-0">
-          <Text type="subheadline1" weight="medium">{brief.title}</Text>
-          <Text type="caption1" color="secondary">{brief.advertiserName}</Text>
-        </div>
+      <div className="mb-2">
+        <Text type="subheadline1" weight="medium">{brief.title}</Text>
       </div>
 
       {/* Description */}

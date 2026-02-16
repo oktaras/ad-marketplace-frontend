@@ -12,6 +12,25 @@ function getTelegramHashParams(): URLSearchParams | null {
   return new URLSearchParams(hash);
 }
 
+function getTelegramQueryParams(): URLSearchParams {
+  return new URLSearchParams(window.location.search);
+}
+
+function firstNonEmpty(params: URLSearchParams | null, keys: string[]): string | undefined {
+  if (!params) {
+    return undefined;
+  }
+
+  for (const key of keys) {
+    const value = params.get(key);
+    if (value && value.trim()) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
 export function getTelegramInitData(): string | undefined {
   const webAppInitData = window.Telegram?.WebApp?.initData;
 
@@ -137,6 +156,17 @@ export function getTelegramStartParam(): string | undefined {
   const fromInitData = getTelegramInitDataParams()?.get('start_param');
   if (fromInitData && fromInitData.trim()) {
     return fromInitData;
+  }
+
+  // Telegram launch params are often passed as URL params (desktop/web clients).
+  const fromQuery = firstNonEmpty(getTelegramQueryParams(), ['tgWebAppStartParam', 'startapp', 'start']);
+  if (fromQuery) {
+    return fromQuery;
+  }
+
+  const fromHash = firstNonEmpty(getTelegramHashParams(), ['tgWebAppStartParam', 'startapp', 'start']);
+  if (fromHash) {
+    return fromHash;
   }
 
   return undefined;

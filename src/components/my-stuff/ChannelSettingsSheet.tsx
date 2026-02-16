@@ -9,10 +9,12 @@ import { AppSheet } from "@/components/common/AppSheet";
 import { SectionLabel } from "@/components/common/SectionLabel";
 import { CategoryPills } from "@/components/common/CategoryPills";
 import { formatNumber } from "@/lib/format";
-import { BadgeCheck } from "lucide-react";
+import { BadgeCheck, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { getDiscoveryCategories } from "@/shared/api/discovery";
 import {
+  deleteMyChannel,
+  refreshMyChannelProfile,
   refreshMyChannelStats,
   updateMyChannel,
 } from "@/shared/api/my-stuff";
@@ -20,6 +22,7 @@ import { getApiErrorMessage } from "@/shared/api/error";
 import { inAppToasts } from "@/shared/notifications/in-app";
 import { ChannelAnalyticsPanel } from "@/components/analytics/ChannelAnalyticsPanel";
 import { ChannelAvatar } from "@/components/common/ChannelAvatar";
+import { useTelegramPopupConfirm } from "@/shared/lib/telegram-popup-confirm";
 
 interface ChannelSettingsSheetProps {
   channel: Channel | null;
@@ -30,6 +33,7 @@ interface ChannelSettingsSheetProps {
 export function ChannelSettingsSheet({ channel, open, onOpenChange }: ChannelSettingsSheetProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const confirmWithPopup = useTelegramPopupConfirm();
   const [activeSection, setActiveSection] = useState<"info" | "analytics">("info");
   const [editCategory, setEditCategory] = useState<ChannelCategory | null>(null);
   const [editLanguage, setEditLanguage] = useState<string | null>(null);
@@ -66,6 +70,27 @@ export function ChannelSettingsSheet({ channel, open, onOpenChange }: ChannelSet
     },
   });
 
+  const refreshProfileMutation = useMutation({
+    mutationFn: () => {
+      if (!channel?.id) {
+        throw new Error("Channel is unavailable.");
+      }
+
+      return refreshMyChannelProfile(channel.id);
+    },
+    onSuccess: async () => {
+      toast(inAppToasts.channelAndListing.profileRefreshSuccess);
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["my-channels"] }),
+        queryClient.invalidateQueries({ queryKey: ["my-listings"] }),
+      ]);
+    },
+    onError: (error) => {
+      toast(inAppToasts.channelAndListing.profileRefreshFailed(getApiErrorMessage(error, "Please try again in a moment.")));
+    },
+  });
+
   const saveSettingsMutation = useMutation({
     mutationFn: async () => {
       if (!channel?.id) {
@@ -89,6 +114,27 @@ export function ChannelSettingsSheet({ channel, open, onOpenChange }: ChannelSet
     },
     onError: (error) => {
       toast(inAppToasts.channelAndListing.channelUpdateFailed(getApiErrorMessage(error, "Please try again.")));
+    },
+  });
+
+  const deleteChannelMutation = useMutation({
+    mutationFn: () => {
+      if (!channel?.id) {
+        throw new Error("Channel is unavailable.");
+      }
+
+      return deleteMyChannel(channel.id);
+    },
+    onSuccess: async () => {
+      toast(inAppToasts.channelAndListing.channelDeleted);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["my-channels"] }),
+        queryClient.invalidateQueries({ queryKey: ["my-listings"] }),
+      ]);
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast(inAppToasts.channelAndListing.channelDeleteFailed(getApiErrorMessage(error, "Please try again.")));
     },
   });
 
@@ -117,6 +163,22 @@ export function ChannelSettingsSheet({ channel, open, onOpenChange }: ChannelSet
     navigate("/profile");
   };
 
+  const handleDeleteChannel = async () => {
+    const confirmed = await confirmWithPopup({
+      title: "Remove channel?",
+      message: "This will remove the channel and deactivate related listings. Active deals must be completed first.",
+      confirmText: "Remove",
+      cancelText: "Cancel",
+      isDestructive: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    deleteChannelMutation.mutate();
+  };
+
   const sections = [
     { value: "info" as const, label: "Settings" },
     { value: "analytics" as const, label: "Analytics" },
@@ -130,20 +192,25 @@ export function ChannelSettingsSheet({ channel, open, onOpenChange }: ChannelSet
     <AppSheet
       open={open}
       onOpenChange={handleOpen}
-      title={(
-        <>
-          <ChannelAvatar
-            avatar={channel.avatar}
-            name={channel.name}
-            className="inline-flex h-6 w-6 text-sm mr-2 align-middle"
-          />
-          {channel.name}
-          {channel.verified && <BadgeCheck className="h-4 w-4 text-primary" />}
-        </>
-      )}
+      title="Manage Channel"
       fullHeight
     >
-      <div className="flex gap-1 bg-secondary/50 rounded-lg p-1 mt-3 mb-5">
+      <div className="flex items-center gap-3 mt-3 mb-4">
+        <ChannelAvatar
+          avatar={channel.avatar}
+          name={channel.name}
+          className="h-10 w-10 text-lg flex-shrink-0"
+        />
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <Text type="subheadline1" weight="medium">{channel.name}</Text>
+            {channel.verified ? <BadgeCheck className="h-4 w-4 text-primary flex-shrink-0" /> : null}
+          </div>
+          <Text type="caption1" color="secondary">{channel.username}</Text>
+        </div>
+      </div>
+
+      <div className="flex gap-1 bg-secondary/50 rounded-lg p-1 mb-5">
         {sections.map((s) => (
           <button
             key={s.value}
@@ -198,6 +265,14 @@ export function ChannelSettingsSheet({ channel, open, onOpenChange }: ChannelSet
             <Text type="caption2" color="tertiary">
               Description is synced from Telegram and cannot be edited here.
             </Text>
+            <Button
+variant="outline"
+              className="w-full"
+              disabled={refreshProfileMutation.isPending}
+              onClick={() => refreshProfileMutation.mutate()}
+            >
+              {refreshProfileMutation.isPending ? "Syncing…" : "Sync with Telegram"}
+            </Button>
           </div>
 
           <div className="space-y-1.5">
@@ -218,6 +293,14 @@ export function ChannelSettingsSheet({ channel, open, onOpenChange }: ChannelSet
 
           <Button onClick={handleSave} disabled={saveSettingsMutation.isPending} className="w-full">
             {saveSettingsMutation.isPending ? "Saving…" : "Save Changes"}
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full text-destructive hover:text-destructive"
+            disabled={deleteChannelMutation.isPending}
+            onClick={() => void handleDeleteChannel()}
+          >
+            <Trash2 className="h-4 w-4" /> Remove Channel
           </Button>
         </div>
       ) : (

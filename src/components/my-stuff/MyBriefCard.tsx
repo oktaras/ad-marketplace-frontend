@@ -5,6 +5,7 @@ import { Text } from "@telegram-tools/ui-kit";
 import { formatCurrency } from "@/lib/format";
 import { MessageSquare, Calendar, FileText, ChevronRight } from "lucide-react";
 import { BRIEF_STATUS_CONFIG } from "@/shared/constants/marketplace-status";
+import { getAdFormatDisplay } from "@/shared/lib/ad-format";
 
 interface MyBriefCardProps {
   brief: Brief;
@@ -45,7 +46,7 @@ export function MyBriefCard({ brief, onClick }: MyBriefCardProps) {
           <Text type="caption2" color="tertiary">Format</Text>
           <div className="flex items-center gap-1">
             <FileText className="h-3 w-3 text-muted-foreground" />
-            <Text type="subheadline2">{brief.format === "post" ? "Post" : brief.format === "story" ? "Story" : "Repost"}</Text>
+            <Text type="subheadline2">{getAdFormatDisplay(brief.format)}</Text>
           </div>
         </div>
         <div>

@@ -45,6 +45,7 @@ import { normalizeCurrency } from "@/types/currency";
 import { useTelegramPopupConfirm } from "@/shared/lib/telegram-popup-confirm";
 import { formatCurrency } from "@/lib/format";
 import { getTelegramChannelAvatarUrl } from "@/shared/lib/channel-avatar";
+import { formatAdFormatTitle, isAdFormatActive } from "@/shared/lib/ad-format";
 
 type BriefSort = "budget_desc" | "budget_asc" | "deadline_asc" | "subs_desc" | "created_desc";
 type MutableBriefStatus = NonNullable<UpdateMyBriefPayload["status"]>;
@@ -122,6 +123,16 @@ function mapMyBriefApplicationToCard(
   const channel = application.channel;
   const primaryCategory = channel?.categories?.[0];
   const channelAvatarUrl = getTelegramChannelAvatarUrl(channel?.username);
+  const adFormatsById = new Map((channel?.adFormats ?? []).map((format) => [format.id, format]));
+  const proposedFormatIds = application.selectedAdFormatIds.length > 0
+    ? application.selectedAdFormatIds
+    : Object.keys(application.proposedFormatPrices);
+  const proposedAdTypes = Array.from(new Set(
+    proposedFormatIds
+      .map((formatId) => adFormatsById.get(formatId))
+      .filter((format): format is NonNullable<typeof format> => Boolean(format))
+      .map((format) => formatAdFormatTitle(format.type, format.name)),
+  ));
 
   return {
     id: application.id,
@@ -138,6 +149,7 @@ function mapMyBriefApplicationToCard(
     message: application.pitch || "No message",
     status: mapApplicationStatus(application.status),
     appliedAt: application.createdAt,
+    proposedAdTypes,
   };
 }
 
@@ -421,18 +433,20 @@ export default function MyBriefs() {
       .filter((format) => allowedIds.has(format.id))
       .map((format) => ({
         id: format.id,
-        name: format.name || format.type,
+        name: formatAdFormatTitle(format.type, format.name),
         price: Number(application.proposedFormatPrices[format.id] ?? application.proposedPrice ?? format.priceAmount ?? 0),
         currency: normalizeCurrency(selectedBrief?.currency || format.priceCurrency),
+        type: format.type,
       }));
+    const activeOptions = options.filter((option) => isAdFormatActive(option.type));
 
     if (options.length === 0) {
       toast(inAppToasts.myBriefs.noAdFormatOptions);
       return;
     }
 
-    if (options.length === 1) {
-      const [singleOption] = options;
+    if (activeOptions.length === 1) {
+      const [singleOption] = activeOptions;
       const channelName = application.channel?.title || "Untitled channel";
       const confirmed = await confirmWithPopup({
         title: "Accept Application",

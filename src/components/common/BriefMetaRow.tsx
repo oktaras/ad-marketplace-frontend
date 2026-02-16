@@ -1,5 +1,5 @@
 import { CHANNEL_CATEGORIES, ChannelCategory } from "@/types/marketplace";
-import { FileText } from "lucide-react";
+import { getAdFormatDisplay } from "@/shared/lib/ad-format";
 
 interface BriefMetaRowProps {
   category?: ChannelCategory;
@@ -8,12 +8,6 @@ interface BriefMetaRowProps {
   format?: "post" | "story" | "repost";
   className?: string;
 }
-
-const FORMAT_LABELS: Record<string, string> = {
-  post: "Post",
-  story: "Story",
-  repost: "Repost",
-};
 
 function formatCategoryLabel(value?: string): string {
   if (!value) {
@@ -43,7 +37,7 @@ export function BriefMetaRow({ category, categoryLabel, categoryIcon, format, cl
         )}
         {format && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-xs font-medium text-muted-foreground">
-            <FileText className="h-3 w-3" /> {FORMAT_LABELS[format]}
+            {getAdFormatDisplay(format)}
           </span>
         )}
       </div>

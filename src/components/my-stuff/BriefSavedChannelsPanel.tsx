@@ -35,7 +35,7 @@ export function BriefSavedChannelsPanel({
           {items.map((item) => {
             const channel = item.channel;
             const username = channel?.username?.replace(/^@+/, "") || "";
-            const channelAvatarUrl = getTelegramChannelAvatarUrl(channel?.username);
+            const channelAvatarUrl = getTelegramChannelAvatarUrl(channel?.username, channel?.updatedAt);
             return (
               <div key={item.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">

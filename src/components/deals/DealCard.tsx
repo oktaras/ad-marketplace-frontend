@@ -1,10 +1,9 @@
 import { Deal, DEAL_STATUS_CONFIG } from "@/types/deal";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { formatCurrency } from "@/lib/format";
-import { useRole } from "@/contexts/RoleContext";
 import { Text } from "@telegram-tools/ui-kit";
 import { Clock } from "lucide-react";
-import { ChannelAvatar } from "@/components/common/ChannelAvatar";
+import { getAdFormatDisplay } from "@/shared/lib/ad-format";
 
 interface DealCardProps {
   deal: Deal;
@@ -12,13 +11,15 @@ interface DealCardProps {
 }
 
 export function DealCard({ deal, onSelect }: DealCardProps) {
-  const { role } = useRole();
   const statusCfg = DEAL_STATUS_CONFIG[deal.status];
-
-  // Show counterparty info based on role
-  const counterpartyName = role === "advertiser" ? deal.channelName : deal.advertiserName;
-  const counterpartyAvatar = role === "advertiser" ? deal.channelAvatar : deal.advertiserAvatar;
-  const counterpartyLabel = role === "advertiser" ? deal.channelUsername : deal.advertiserName;
+  const briefTitle = deal.briefTitle || "Brief";
+  const rawBriefDescription = (deal.briefDescription || "").trim();
+  const briefDescription = rawBriefDescription.length > 0
+    ? rawBriefDescription
+    : "No brief description";
+  const briefDescriptionPreview = briefDescription.length > 96
+    ? `${briefDescription.slice(0, 96).trimEnd()}...`
+    : briefDescription;
 
   const activeMilestone = deal.milestones.find((m) => m.status === "active");
   const completedCount = deal.milestones.filter((m) => m.status === "done").length;
@@ -30,35 +31,20 @@ export function DealCard({ deal, onSelect }: DealCardProps) {
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-xl flex-shrink-0">
-            <ChannelAvatar
-              avatar={counterpartyAvatar}
-              name={counterpartyName}
-              fallback="👤"
-              className="h-full w-full text-xl"
-            />
-          </div>
-          <div className="min-w-0">
-            <Text type="body" weight="medium">{counterpartyName}</Text>
-            <Text type="caption1" color="secondary">{counterpartyLabel}</Text>
+        <div className="min-w-0">
+          <Text type="body" weight="medium">{briefTitle}</Text>
+          <div className="mt-0.5">
+            <Text type="caption1" color="secondary">{briefDescriptionPreview}</Text>
           </div>
         </div>
         <StatusBadge label={statusCfg.label} icon={statusCfg.emoji} variant={statusCfg.badgeVariant ?? "muted"} />
       </div>
 
-      {/* Brief title if applicable */}
-      {deal.briefTitle && (
-        <div className="bg-secondary/50 rounded-lg px-3 py-1.5">
-          <Text type="caption1" color="secondary">Brief: {deal.briefTitle}</Text>
-        </div>
-      )}
-
       {/* Footer */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Text type="subheadline1" weight="medium">{formatCurrency(deal.agreedPrice, deal.currency)}</Text>
-          <span className="text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground capitalize">{deal.format}</span>
+          <span className="text-xs px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">{getAdFormatDisplay(deal.format)}</span>
         </div>
         <div className="flex items-center gap-2">
           {/* Progress dots */}

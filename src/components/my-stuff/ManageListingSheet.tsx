@@ -13,6 +13,7 @@ import { getApiErrorMessage } from "@/shared/api/error";
 import { LISTING_STATUS_CONFIG, isListingTerminalStatus } from "@/shared/constants/marketplace-status";
 import { inAppToasts } from "@/shared/notifications/in-app";
 import { useTelegramPopupConfirm } from "@/shared/lib/telegram-popup-confirm";
+import { isAdFormatActive } from "@/shared/lib/ad-format";
 
 interface ManageListingSheetProps {
   listing: Listing | null;
@@ -31,7 +32,12 @@ export function ManageListingSheet({ listing, open, onOpenChange }: ManageListin
     if (listing) {
       setTitle(listing.title);
       setDescription(listing.description);
-      setFormats([...listing.formats]);
+      setFormats(
+        listing.formats.map((format) => ({
+          ...format,
+          enabled: format.enabled && isAdFormatActive(format.format),
+        })),
+      );
     }
   }, [listing]);
 
@@ -47,7 +53,7 @@ export function ManageListingSheet({ listing, open, onOpenChange }: ManageListin
           adFormatId: format.adFormatId as string,
           customPrice: Math.max(0, format.price).toString(),
           customCurrency: format.currency,
-          enabled: format.enabled,
+          enabled: format.enabled && isAdFormatActive(format.format),
         }));
 
       if (offers.length === 0) {

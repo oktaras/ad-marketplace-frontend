@@ -12,6 +12,10 @@ interface SettingsSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const ENGLISH_ONLY_LANGUAGE_OPTIONS = [
+  { value: "EN", label: "English" },
+];
+
 export function SettingsSheet({ open, onOpenChange }: SettingsSheetProps) {
   const { mode, setMode } = useThemeMode();
 
@@ -50,7 +54,11 @@ export function SettingsSheet({ open, onOpenChange }: SettingsSheetProps) {
           {/* Language */}
           <div className="space-y-3">
             <Text type="subheadline2" weight="medium">Language</Text>
-            <LanguageSelector className="w-full" />
+            <LanguageSelector
+              className="w-full"
+              options={ENGLISH_ONLY_LANGUAGE_OPTIONS}
+              disabled
+            />
           </div>
 
           {/* Help */}

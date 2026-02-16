@@ -108,6 +108,7 @@ type RawDeal = {
   brief: {
     id: string;
     title: string;
+    description?: string | null;
   } | null;
   creative?: {
     id: string;
@@ -162,6 +163,8 @@ type RawDealFinanceResponse = {
   finance?: {
     agreedPrice?: string | null;
     currency?: string | null;
+    platformFeeBps?: number | null;
+    platformFeePercent?: number | null;
     platformFeeAmount?: string | null;
     publisherAmount?: string | null;
     escrowStatus?: DealEscrowStatus;
@@ -425,6 +428,100 @@ function parseAmount(value: string | null | undefined): number {
 
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+const TON_NANO_DIVISOR = 1_000_000_000;
+const TON_NANO_HEURISTIC_THRESHOLD = 1_000_000;
+
+function isTonCurrency(currency: string | null | undefined): boolean {
+  return (currency || "").trim().toUpperCase() === "TON";
+}
+
+function isAlmostEqual(a: number, b: number): boolean {
+  if (!Number.isFinite(a) || !Number.isFinite(b)) {
+    return false;
+  }
+
+  const diff = Math.abs(a - b);
+  const scale = Math.max(1, Math.abs(a), Math.abs(b));
+  return diff <= scale * 0.000001;
+}
+
+function maybeConvertTonFromNano(value: number, referenceAmount: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  const threshold = Math.max(TON_NANO_HEURISTIC_THRESHOLD, Math.abs(referenceAmount) * 1000);
+  if (Math.abs(value) >= threshold && Number.isInteger(value)) {
+    return value / TON_NANO_DIVISOR;
+  }
+
+  return value;
+}
+
+function normalizeTonFinanceAmounts(
+  agreedPrice: number,
+  platformFeeAmount: number,
+  publisherAmount: number,
+): { agreedPrice: number; platformFeeAmount: number; publisherAmount: number } {
+  if (!Number.isFinite(agreedPrice) || !Number.isFinite(platformFeeAmount) || !Number.isFinite(publisherAmount)) {
+    return {
+      agreedPrice,
+      platformFeeAmount,
+      publisherAmount,
+    };
+  }
+
+  const feePlusPublisher = platformFeeAmount + publisherAmount;
+  const feePlusPublisherInTon = feePlusPublisher / TON_NANO_DIVISOR;
+  const agreedPriceInTon = agreedPrice / TON_NANO_DIVISOR;
+  const looksLikeNanoTriplet = Number.isInteger(agreedPrice)
+    && Number.isInteger(platformFeeAmount)
+    && Number.isInteger(publisherAmount)
+    && Math.abs(agreedPrice) >= TON_NANO_HEURISTIC_THRESHOLD;
+
+  if (isAlmostEqual(feePlusPublisher, agreedPrice)) {
+    if (looksLikeNanoTriplet) {
+      return {
+        agreedPrice: agreedPrice / TON_NANO_DIVISOR,
+        platformFeeAmount: platformFeeAmount / TON_NANO_DIVISOR,
+        publisherAmount: publisherAmount / TON_NANO_DIVISOR,
+      };
+    }
+
+    return { agreedPrice, platformFeeAmount, publisherAmount };
+  }
+
+  if (isAlmostEqual(feePlusPublisherInTon, agreedPrice)) {
+    return {
+      agreedPrice,
+      platformFeeAmount: platformFeeAmount / TON_NANO_DIVISOR,
+      publisherAmount: publisherAmount / TON_NANO_DIVISOR,
+    };
+  }
+
+  if (isAlmostEqual(feePlusPublisher, agreedPriceInTon)) {
+    return {
+      agreedPrice: agreedPriceInTon,
+      platformFeeAmount,
+      publisherAmount,
+    };
+  }
+
+  if (isAlmostEqual(feePlusPublisherInTon, agreedPriceInTon)) {
+    return {
+      agreedPrice: agreedPriceInTon,
+      platformFeeAmount: platformFeeAmount / TON_NANO_DIVISOR,
+      publisherAmount: publisherAmount / TON_NANO_DIVISOR,
+    };
+  }
+
+  return {
+    agreedPrice,
+    platformFeeAmount: maybeConvertTonFromNano(platformFeeAmount, agreedPrice),
+    publisherAmount: maybeConvertTonFromNano(publisherAmount, agreedPrice),
+  };
 }
 
 function formatDateTimeLabel(iso: string | null | undefined): string | null {
@@ -777,6 +874,7 @@ function mapDeal(raw: RawDeal): Deal {
     id: raw.id,
     briefId: raw.brief?.id || raw.briefId || undefined,
     briefTitle: raw.brief?.title || undefined,
+    briefDescription: raw.brief?.description || undefined,
     channelId: raw.channelId,
     channelName: raw.channel.title || "Untitled channel",
     channelAvatar: channelAvatarUrl || primaryCategory?.icon || "📡",
@@ -848,14 +946,27 @@ function mapFinanceWallet(raw: unknown): DealFinanceWallet | null {
 function mapDealFinanceData(raw: RawDealFinanceResponse): DealFinanceData {
   const backendStatus = normalizeBackendDealStatus(raw.workflowStatus || raw.status);
   const finance = raw.finance && typeof raw.finance === "object" ? raw.finance : null;
+  const currency = typeof finance?.currency === "string" && finance.currency.trim() ? finance.currency : DEFAULT_CURRENCY;
+  const agreedPrice = parseAmount(finance?.agreedPrice);
+  const platformFeeAmount = parseAmount(finance?.platformFeeAmount);
+  const publisherAmount = parseAmount(finance?.publisherAmount);
+  const normalizedAmounts = isTonCurrency(currency)
+    ? normalizeTonFinanceAmounts(agreedPrice, platformFeeAmount, publisherAmount)
+    : {
+      agreedPrice,
+      platformFeeAmount,
+      publisherAmount,
+    };
 
   return {
     backendStatus,
     status: toUiDealStatus(backendStatus),
-    agreedPrice: parseAmount(finance?.agreedPrice),
-    currency: typeof finance?.currency === "string" && finance.currency.trim() ? finance.currency : DEFAULT_CURRENCY,
-    platformFeeAmount: parseAmount(finance?.platformFeeAmount),
-    publisherAmount: parseAmount(finance?.publisherAmount),
+    agreedPrice: normalizedAmounts.agreedPrice,
+    currency,
+    platformFeeBps: typeof finance?.platformFeeBps === "number" ? finance.platformFeeBps : undefined,
+    platformFeePercent: typeof finance?.platformFeePercent === "number" ? finance.platformFeePercent : undefined,
+    platformFeeAmount: normalizedAmounts.platformFeeAmount,
+    publisherAmount: normalizedAmounts.publisherAmount,
     escrowStatus: finance?.escrowStatus,
     escrowWallet: mapFinanceWallet(finance?.escrowWallet),
     availableActions: mapDealActions(raw.availableActions),
@@ -864,6 +975,35 @@ function mapDealFinanceData(raw: RawDealFinanceResponse): DealFinanceData {
 
 function mapDealActivityData(raw: RawDealActivityResponse): DealActivityData {
   const backendStatus = normalizeBackendDealStatus(raw.workflowStatus || raw.status);
+  const normalizeActorLabel = (actor: unknown): string => {
+    if (typeof actor !== "string") {
+      return "System";
+    }
+
+    const value = actor.trim();
+    if (!value) {
+      return "System";
+    }
+
+    const upper = value.toUpperCase();
+    if (upper === "SYSTEM") {
+      return "System";
+    }
+
+    if (upper === "ADVERTISER") {
+      return "Advertiser";
+    }
+
+    if (upper === "PUBLISHER" || upper === "CHANNEL_OWNER") {
+      return "Publisher";
+    }
+
+    if (value === "Advertiser" || value === "Publisher" || value === "System" || value === "Participant") {
+      return value;
+    }
+
+    return "Participant";
+  };
   const items: DealActivityItem[] = Array.isArray(raw.activity)
     ? raw.activity
       .map((entry, index) => {
@@ -884,7 +1024,7 @@ function mapDealActivityData(raw: RawDealActivityResponse): DealActivityData {
         }
 
         const id = typeof entry.id === "string" && entry.id.trim() ? entry.id : `activity-${index}-${timestamp}`;
-        const actor = typeof entry.actor === "string" && entry.actor.trim() ? entry.actor : "SYSTEM";
+        const actor = normalizeActorLabel(entry.actor);
         const title = typeof entry.title === "string" && entry.title.trim() ? entry.title : "Activity";
         const detail = typeof entry.detail === "string" ? entry.detail : "";
 

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Text } from "@telegram-tools/ui-kit";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageContainer } from "@/components/common/PageContainer";
+import { HorizontalScrollRow } from "@/components/common/HorizontalScrollRow";
 import { useRole } from "@/contexts/RoleContext";
 import { DealCard } from "@/components/deals/DealCard";
 import { DealDetailSheet } from "@/components/deals/DealDetailSheet";
@@ -291,8 +292,8 @@ export default function Deals() {
   return (
     <AppLayout>
       <PageContainer className="py-3 space-y-4">
-        <div className="overflow-x-auto -mx-4 px-4">
-          <div className="flex gap-2 min-w-min" role="tablist">
+        <HorizontalScrollRow>
+          <div className="flex gap-2" role="tablist">
             {(Object.keys(STATUS_FILTERS) as DealFilter[]).map((filterKey) => {
               const filter = STATUS_FILTERS[filterKey];
               const count = statusCounts[filter.value];
@@ -324,7 +325,7 @@ export default function Deals() {
               );
             })}
           </div>
-        </div>
+        </HorizontalScrollRow>
 
         {dealsQuery.isError ? (
           <EmptyState
