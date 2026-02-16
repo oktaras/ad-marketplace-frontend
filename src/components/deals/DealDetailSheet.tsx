@@ -62,9 +62,9 @@ type DealDetailsTab = "overview" | "creative" | "posting-plan" | "finance" | "ac
 
 const TAB_LABELS: Array<{ id: DealDetailsTab; label: string }> = [
   { id: "overview", label: "Overview" },
+  { id: "finance", label: "Finance" },
   { id: "creative", label: "Creative" },
   { id: "posting-plan", label: "Posting Plan" },
-  { id: "finance", label: "Finance" },
   { id: "activity", label: "Activity" },
 ];
 const DEAL_DETAILS_TAB_ORDER: readonly DealDetailsTab[] = TAB_LABELS.map((tabOption) => tabOption.id);

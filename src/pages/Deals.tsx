@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { Text } from "@telegram-tools/ui-kit";
+import { CHAIN, useTonConnectUI, useTonWallet } from "@tonconnect/ui-react";
 import { SlidersHorizontal } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageContainer } from "@/components/common/PageContainer";
@@ -44,6 +45,7 @@ import type { CreativeMedia, InlineButton } from "@/types/deal";
 import type { DealEscrowStatus } from "@/types/deal";
 import { useSwipeTabNavigation } from "@/hooks/use-touch-gestures";
 import { useTabContentTransition } from "@/hooks/use-tab-content-transition";
+import { env } from "@/app/config/env";
 
 type DealFilter = UiDealFilter;
 type DealSort = DealListSort;
@@ -106,6 +108,103 @@ function isDealEscrowStatusValue(value: string): value is DealEscrowStatus {
   return DEAL_ESCROW_STATUS_VALUES.has(value as DealEscrowStatus);
 }
 
+type ExternalDeepLinkResult = "opened" | "attempted" | "failed";
+
+type EscrowFundingTransaction = {
+  to?: string;
+  amountNano?: string;
+  payload?: string;
+  stateInit?: string;
+  deepLink?: string;
+};
+
+function openExternalDeepLink(url: string): ExternalDeepLinkResult {
+  const targetUrl = url.trim();
+  if (!targetUrl) {
+    return "failed";
+  }
+
+  const webApp = window.Telegram?.WebApp;
+  const isTelegramUrl = /^tg:\/\//i.test(targetUrl) || /^https?:\/\/t\.me\//i.test(targetUrl);
+  const isHttpUrl = /^https?:\/\//i.test(targetUrl);
+
+  try {
+    if (isTelegramUrl && webApp?.openTelegramLink) {
+      webApp.openTelegramLink(targetUrl);
+      return "opened";
+    }
+  } catch (error) {
+    console.warn("openTelegramLink failed:", error);
+  }
+
+  try {
+    if (isHttpUrl && webApp?.openLink) {
+      webApp.openLink(targetUrl, { try_instant_view: false });
+      return "opened";
+    }
+  } catch (error) {
+    console.warn("openLink failed:", error);
+  }
+
+  try {
+    // For custom schemes (e.g. ton://), navigation is more reliable than popup in mobile WebViews.
+    window.location.href = targetUrl;
+    return "attempted";
+  } catch (error) {
+    console.warn("location href deep-link failed:", error);
+  }
+
+  const opened = window.open(targetUrl, "_blank", "noopener,noreferrer");
+  return opened ? "opened" : "failed";
+}
+
+function normalizeEscrowFundingMessage(transaction: EscrowFundingTransaction): {
+  address: string;
+  amount: string;
+  payload?: string;
+  stateInit?: string;
+} | null {
+  const address = transaction.to?.trim() ?? "";
+  const amount = transaction.amountNano?.trim() ?? "";
+  const payload = transaction.payload?.trim() || undefined;
+  const stateInit = transaction.stateInit?.trim() || undefined;
+
+  if (!address || !amount || !/^\d+$/.test(amount)) {
+    return null;
+  }
+
+  try {
+    if (BigInt(amount) <= 0n) {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+
+  return { address, amount, payload, stateInit };
+}
+
+async function sendEscrowFundingViaTonConnect(params: {
+  tonConnectUI: { sendTransaction: (transaction: unknown) => Promise<unknown> };
+  transaction: EscrowFundingTransaction;
+  walletChain?: CHAIN | null;
+}): Promise<boolean> {
+  const message = normalizeEscrowFundingMessage(params.transaction);
+  if (!message) {
+    return false;
+  }
+
+  const network = params.walletChain ?? (env.tonNetwork === "mainnet" ? CHAIN.MAINNET : CHAIN.TESTNET);
+
+  await params.tonConnectUI.sendTransaction({
+    validUntil: Math.floor(Date.now() / 1000) + 5 * 60,
+    network,
+    messages: [message],
+  });
+
+  return true;
+}
+
 function hasAnyRangeValue(ranges: Record<DealRangeKey, { from: string; to: string }>): boolean {
   return Object.values(ranges).some((range) => range.from.trim().length > 0 || range.to.trim().length > 0);
 }
@@ -129,6 +228,8 @@ export default function Deals() {
   const navigate = useNavigate();
   const { id: routeDealId } = useParams();
   const queryClient = useQueryClient();
+  const [tonConnectUI] = useTonConnectUI();
+  const connectedWallet = useTonWallet();
   const [selectedFilter, setSelectedFilter] = useState<DealFilter>("all");
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   const [filters, setFilters] = useState<FilterSortState<DealSort>>({
@@ -305,13 +406,36 @@ export default function Deals() {
   const fundDealMutation = useMutation({
     mutationFn: fundDeal,
     onSuccess: async (result) => {
-      const deepLink = result.transaction?.deepLink;
-      if (deepLink) {
-        window.open(deepLink, "_blank", "noopener,noreferrer");
+      const transaction = result.transaction;
+      let sentViaTonConnect = false;
+
+      if (transaction && connectedWallet) {
+        try {
+          sentViaTonConnect = await sendEscrowFundingViaTonConnect({
+            tonConnectUI,
+            transaction,
+            walletChain: connectedWallet.account.chain as CHAIN,
+          });
+        } catch (error) {
+          console.warn("sendTransaction via TonConnect failed:", error);
+        }
       }
 
+      const deepLink = transaction?.deepLink;
+      const deepLinkResult = !sentViaTonConnect && deepLink
+        ? openExternalDeepLink(deepLink)
+        : "failed";
+
+      const toastDescription = sentViaTonConnect
+        ? "Transaction request sent to your connected wallet."
+        : deepLink
+          ? (deepLinkResult === "opened"
+            ? "Wallet deeplink opened."
+            : "Wallet deeplink prepared. If it did not open, connect wallet and try again.")
+          : "Use returned escrow details to complete payment.";
+
       toast(inAppToasts.deals.paymentPrepared(
-        deepLink ? "Wallet deeplink opened." : "Use returned escrow details to complete payment.",
+        toastDescription,
       ));
       await refreshDeals();
     },
