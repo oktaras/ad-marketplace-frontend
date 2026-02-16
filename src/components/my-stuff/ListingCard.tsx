@@ -1,6 +1,7 @@
 import { Listing } from "@/types/listing";
 import { Text } from "@telegram-tools/ui-kit";
 import { Eye, MessageSquare, ChevronRight } from "lucide-react";
+import { ChannelAvatar } from "@/components/common/ChannelAvatar";
 
 interface ListingCardProps {
   listing: Listing;
@@ -37,7 +38,11 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-lg flex-shrink-0">
-            {listing.channelAvatar}
+            <ChannelAvatar
+              avatar={listing.channelAvatar}
+              name={listing.channelName}
+              className="h-full w-full text-lg"
+            />
           </div>
           <div className="flex-1 min-w-0">
             <Text type="subheadline1" weight="medium">{listing.title}</Text>

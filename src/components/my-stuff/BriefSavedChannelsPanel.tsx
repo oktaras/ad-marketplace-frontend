@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Text } from "@telegram-tools/ui-kit";
 import type { BriefSavedChannelItem } from "@/shared/api/discovery";
 import { Trash2, ExternalLink } from "lucide-react";
+import { ChannelAvatar } from "@/components/common/ChannelAvatar";
+import { getTelegramChannelAvatarUrl } from "@/shared/lib/channel-avatar";
 
 interface BriefSavedChannelsPanelProps {
   items: BriefSavedChannelItem[];
@@ -33,14 +35,22 @@ export function BriefSavedChannelsPanel({
           {items.map((item) => {
             const channel = item.channel;
             const username = channel?.username?.replace(/^@+/, "") || "";
+            const channelAvatarUrl = getTelegramChannelAvatarUrl(channel?.username);
             return (
               <div key={item.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <Text type="subheadline2" weight="medium">{channel?.title || "Untitled channel"}</Text>
-                    <Text type="caption1" color="secondary">
-                      {channel?.username ? `@${username}` : "No username"}
-                    </Text>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <ChannelAvatar
+                      avatar={channelAvatarUrl}
+                      name={channel?.title || "Channel"}
+                      className="h-10 w-10 flex-shrink-0 text-lg"
+                    />
+                    <div className="min-w-0">
+                      <Text type="subheadline2" weight="medium">{channel?.title || "Untitled channel"}</Text>
+                      <Text type="caption1" color="secondary">
+                        {channel?.username ? `@${username}` : "No username"}
+                      </Text>
+                    </div>
                   </div>
                   {onRemove ? (
                     <Button

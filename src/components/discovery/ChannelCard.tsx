@@ -2,6 +2,7 @@ import { Channel } from "@/types/marketplace";
 import { Text } from "@telegram-tools/ui-kit";
 import { formatNumber, formatCurrency } from "@/lib/format";
 import { Users, Eye, TrendingUp, BadgeCheck } from "lucide-react";
+import { ChannelAvatar } from "@/components/common/ChannelAvatar";
 
 interface ChannelCardProps {
   channel: Channel;
@@ -17,7 +18,11 @@ export function ChannelCard({ channel, onClick }: ChannelCardProps) {
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
         <div className="w-11 h-11 rounded-full bg-secondary flex items-center justify-center text-xl flex-shrink-0">
-          {channel.avatar}
+          <ChannelAvatar
+            avatar={channel.avatar}
+            name={channel.name}
+            className="h-full w-full text-xl"
+          />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">

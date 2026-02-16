@@ -300,12 +300,6 @@ export const inAppToasts = {
       title: "Channel added",
       description: "Channel verification completed.",
     } satisfies InAppToast,
-    channelAddedWithWarnings: (description: string) => ({
-      id: "A07",
-      title: "Channel added with warnings",
-      description,
-      variant: "destructive",
-    } satisfies InAppToast),
     addChannelFailed: (description: string) => ({
       id: "A07",
       title: "Could not add channel",

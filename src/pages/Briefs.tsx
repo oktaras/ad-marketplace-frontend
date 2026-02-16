@@ -27,6 +27,7 @@ import {
 } from "@/pages/discovery/utils";
 
 type BriefSort = "budget_desc" | "budget_asc" | "deadline_asc" | "subs_desc" | "created_desc";
+type BriefRangeKey = "budget" | "minSubscribers" | "applications";
 
 const BRIEF_SORT_OPTIONS: { value: BriefSort; label: string }[] = [
   { value: "created_desc", label: "Newest first" },
@@ -35,6 +36,38 @@ const BRIEF_SORT_OPTIONS: { value: BriefSort; label: string }[] = [
   { value: "deadline_asc", label: "Deadline: Soonest" },
   { value: "subs_desc", label: "Min Subs: Highest" },
 ];
+
+const BRIEF_RANGE_OPTIONS = [
+  { key: "budget", label: "Budget", step: "1", fromPlaceholder: "From", toPlaceholder: "To" },
+  { key: "minSubscribers", label: "Min Subscribers", step: "1", fromPlaceholder: "From", toPlaceholder: "To" },
+  { key: "applications", label: "Applications Count", step: "1", fromPlaceholder: "From", toPlaceholder: "To" },
+] as const;
+
+const INITIAL_BRIEF_RANGES: Record<BriefRangeKey, { from: string; to: string }> = {
+  budget: { from: "", to: "" },
+  minSubscribers: { from: "", to: "" },
+  applications: { from: "", to: "" },
+};
+
+function hasAnyRangeValue(ranges: Record<BriefRangeKey, { from: string; to: string }>): boolean {
+  return Object.values(ranges).some((range) => (
+    range.from.trim().length > 0 || range.to.trim().length > 0
+  ));
+}
+
+function formatRangeLabel(label: string, from: string, to: string): string {
+  const fromValue = from.trim();
+  const toValue = to.trim();
+  if (fromValue && toValue) {
+    return `${label}: ${fromValue} - ${toValue}`;
+  }
+
+  if (fromValue) {
+    return `${label}: from ${fromValue}`;
+  }
+
+  return `${label}: to ${toValue}`;
+}
 
 export default function Briefs() {
   const { role } = useRole();
@@ -45,6 +78,7 @@ export default function Briefs() {
     categories: [],
     statuses: [],
     sort: "created_desc",
+    ranges: INITIAL_BRIEF_RANGES,
   });
   const [selectedBrief, setSelectedBrief] = useState<Brief | null>(null);
 
@@ -52,15 +86,34 @@ export default function Briefs() {
   const normalizedSearch = debouncedSearch.trim();
   const activeSearch = normalizedSearch.length >= SEARCH_MIN_LENGTH ? normalizedSearch : "";
   const waitingForSearchThreshold = normalizedSearch.length > 0 && normalizedSearch.length < SEARCH_MIN_LENGTH;
+  const briefRanges: Record<BriefRangeKey, { from: string; to: string }> = {
+    ...INITIAL_BRIEF_RANGES,
+    ...(filters.ranges ?? {}),
+  };
   const categoryKey = filters.categories.slice().sort().join(",");
-  const hasActiveFilters = Boolean(filters.search.trim() || filters.categories.length > 0);
+  const rangesKey = [
+    briefRanges.budget.from,
+    briefRanges.budget.to,
+    briefRanges.minSubscribers.from,
+    briefRanges.minSubscribers.to,
+    briefRanges.applications.from,
+    briefRanges.applications.to,
+  ].join("|");
+  const hasActiveFilters = Boolean(
+    filters.search.trim()
+    || filters.categories.length > 0
+    || hasAnyRangeValue(briefRanges),
+  );
 
   const categoriesQuery = useQuery({
     queryKey: ["briefs", "categories"],
     queryFn: getDiscoveryCategories,
   });
 
-  const categories = categoriesQuery.data ?? [];
+  const categories = useMemo(
+    () => categoriesQuery.data ?? [],
+    [categoriesQuery.data],
+  );
 
   const categoryBySlug = useMemo(
     () => buildCategoryMap(categories),
@@ -97,17 +150,65 @@ export default function Briefs() {
       });
     });
 
+    if (briefRanges.budget.from.trim() || briefRanges.budget.to.trim()) {
+      chips.push({
+        key: "range-budget",
+        label: formatRangeLabel("Budget", briefRanges.budget.from, briefRanges.budget.to),
+        onRemove: () => setFilters((previous) => ({
+          ...previous,
+          ranges: {
+            ...(previous.ranges ?? {}),
+            budget: { from: "", to: "" },
+          },
+        })),
+      });
+    }
+
+    if (briefRanges.minSubscribers.from.trim() || briefRanges.minSubscribers.to.trim()) {
+      chips.push({
+        key: "range-min-subscribers",
+        label: formatRangeLabel("Min Subs", briefRanges.minSubscribers.from, briefRanges.minSubscribers.to),
+        onRemove: () => setFilters((previous) => ({
+          ...previous,
+          ranges: {
+            ...(previous.ranges ?? {}),
+            minSubscribers: { from: "", to: "" },
+          },
+        })),
+      });
+    }
+
+    if (briefRanges.applications.from.trim() || briefRanges.applications.to.trim()) {
+      chips.push({
+        key: "range-applications",
+        label: formatRangeLabel("Applications", briefRanges.applications.from, briefRanges.applications.to),
+        onRemove: () => setFilters((previous) => ({
+          ...previous,
+          ranges: {
+            ...(previous.ranges ?? {}),
+            applications: { from: "", to: "" },
+          },
+        })),
+      });
+    }
+
     return chips;
-  }, [categoryNameBySlug, filters.categories, filters.search]);
+  }, [briefRanges.applications.from, briefRanges.applications.to, briefRanges.budget.from, briefRanges.budget.to, briefRanges.minSubscribers.from, briefRanges.minSubscribers.to, categoryNameBySlug, filters.categories, filters.search]);
 
   const briefsQuery = useInfiniteQuery({
-    queryKey: ["briefs", "briefs", categoryKey, activeSearch, filters.sort],
+    queryKey: ["briefs", "briefs", categoryKey, activeSearch, filters.sort, rangesKey],
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
       getDiscoveryBriefs({
         categories: filters.categories,
         search: activeSearch,
         sortBy: filters.sort,
+        budgetMin: briefRanges.budget.from,
+        budgetMax: briefRanges.budget.to,
+        minSubscribers: briefRanges.minSubscribers.from,
+        maxSubscribers: briefRanges.minSubscribers.to,
+        minApplications: briefRanges.applications.from,
+        maxApplications: briefRanges.applications.to,
         limit: DISCOVERY_LIMIT,
         page: pageParam,
       }),
@@ -144,6 +245,7 @@ export default function Briefs() {
       search: "",
       categories: [],
       statuses: [],
+      ranges: INITIAL_BRIEF_RANGES,
     }));
   };
 
@@ -251,6 +353,13 @@ export default function Briefs() {
           value: category.slug,
           label: category.name,
           icon: category.icon,
+        }))}
+        rangeOptions={BRIEF_RANGE_OPTIONS.map((option) => ({
+          key: option.key,
+          label: option.label,
+          step: option.step,
+          fromPlaceholder: option.fromPlaceholder,
+          toPlaceholder: option.toPlaceholder,
         }))}
         searchPlaceholder="Search briefs…"
       />

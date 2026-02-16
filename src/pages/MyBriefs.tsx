@@ -44,6 +44,7 @@ import { inAppEmptyStates, inAppToasts } from "@/shared/notifications/in-app";
 import { normalizeCurrency } from "@/types/currency";
 import { useTelegramPopupConfirm } from "@/shared/lib/telegram-popup-confirm";
 import { formatCurrency } from "@/lib/format";
+import { getTelegramChannelAvatarUrl } from "@/shared/lib/channel-avatar";
 
 type BriefSort = "budget_desc" | "budget_asc" | "deadline_asc" | "subs_desc" | "created_desc";
 type MutableBriefStatus = NonNullable<UpdateMyBriefPayload["status"]>;
@@ -120,13 +121,14 @@ function mapMyBriefApplicationToCard(
 ): BriefApplicationCardItem {
   const channel = application.channel;
   const primaryCategory = channel?.categories?.[0];
+  const channelAvatarUrl = getTelegramChannelAvatarUrl(channel?.username);
 
   return {
     id: application.id,
     briefId: application.briefId,
     channelId: application.channelId,
     channelName: channel?.title || "Untitled channel",
-    channelAvatar: primaryCategory?.icon || "📡",
+    channelAvatar: channelAvatarUrl || primaryCategory?.icon || "📡",
     channelUsername: channel?.username
       ? (channel.username.startsWith("@") ? channel.username : `@${channel.username}`)
       : "@unknown",
@@ -509,16 +511,6 @@ export default function MyBriefs() {
   return (
     <AppLayout>
       <PageContainer className="py-4 space-y-4">
-        <div className="flex justify-end">
-          <button
-            onClick={() => setCreateBriefOpen(true)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
-          >
-            <Plus className="h-4 w-4" />
-            Create Brief
-          </button>
-        </div>
-
         <StatusTabs
           tabs={[
             { value: "active", label: "Active" },
@@ -528,11 +520,22 @@ export default function MyBriefs() {
           onTabChange={(tab) => setBriefTab(tab as "active" | "closed")}
         />
 
-        <div className="flex items-center justify-between gap-2">
-          <Button variant="outline" onClick={() => setFilterSheetOpen(true)} className="w-full">
+        <div className="flex items-center gap-2 flex-nowrap">
+          <Button
+            variant="outline"
+            onClick={() => setFilterSheetOpen(true)}
+            className="flex-1 min-w-0 whitespace-nowrap"
+          >
             <SlidersHorizontal className="h-4 w-4" />
             Filters & Sort
           </Button>
+          <button
+            onClick={() => setCreateBriefOpen(true)}
+            className="shrink-0 h-10 flex items-center gap-1 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium whitespace-nowrap"
+          >
+            <Plus className="h-4 w-4" />
+            Create Brief
+          </button>
         </div>
 
         <ActiveFilters

@@ -7,11 +7,10 @@ import { SectionLabel } from "@/components/common/SectionLabel";
 import { CategoryPills } from "@/components/common/CategoryPills";
 import { ChannelCategory } from "@/types/marketplace";
 import { getDiscoveryCategories } from "@/shared/api/discovery";
-import { createMyChannelFormat, verifyAndAddMyChannel } from "@/shared/api/my-stuff";
+import { verifyAndAddMyChannel } from "@/shared/api/my-stuff";
 import { getApiErrorMessage } from "@/shared/api/error";
 import { toast } from "@/hooks/use-toast";
 import { inAppToasts } from "@/shared/notifications/in-app";
-import { DEFAULT_CURRENCY } from "@/types/currency";
 
 interface AddChannelSheetProps {
   open: boolean;
@@ -21,7 +20,6 @@ interface AddChannelSheetProps {
 export interface AddChannelFormData {
   username: string;
   category: ChannelCategory;
-  pricePerPost: string;
 }
 
 export function AddChannelSheet({ open, onOpenChange }: AddChannelSheetProps) {
@@ -29,7 +27,6 @@ export function AddChannelSheet({ open, onOpenChange }: AddChannelSheetProps) {
   const [form, setForm] = useState<AddChannelFormData>({
     username: "",
     category: "crypto",
-    pricePerPost: "",
   });
 
   const categoriesQuery = useQuery({
@@ -40,29 +37,10 @@ export function AddChannelSheet({ open, onOpenChange }: AddChannelSheetProps) {
   const addChannelMutation = useMutation({
     mutationFn: async (data: AddChannelFormData) => {
       const selectedCategoryId = categoriesQuery.data?.find((entry) => entry.slug === data.category)?.id;
-      const response = await verifyAndAddMyChannel({
+      return verifyAndAddMyChannel({
         channelUsername: data.username.trim(),
         categoryIds: selectedCategoryId ? [selectedCategoryId] : undefined,
       });
-
-      const channelId = response.channel?.id;
-      if (channelId) {
-        try {
-          await createMyChannelFormat(channelId, {
-            type: "POST",
-            name: "Post",
-            description: "Default post format",
-            priceAmount: Number(data.pricePerPost).toString(),
-            priceCurrency: DEFAULT_CURRENCY,
-          });
-        } catch (error) {
-          toast(inAppToasts.channelAndListing.channelAddedWithWarnings(
-            getApiErrorMessage(error, "Open channel settings to configure pricing."),
-          ));
-        }
-      }
-
-      return response;
     },
     onSuccess: async () => {
       toast(inAppToasts.channelAndListing.channelAdded);
@@ -71,7 +49,7 @@ export function AddChannelSheet({ open, onOpenChange }: AddChannelSheetProps) {
         queryClient.invalidateQueries({ queryKey: ["my-listings"] }),
       ]);
       onOpenChange(false);
-      setForm({ username: "", category: "crypto", pricePerPost: "" });
+      setForm({ username: "", category: "crypto" });
     },
     onError: (error) => {
       toast(inAppToasts.channelAndListing.addChannelFailed(
@@ -82,9 +60,7 @@ export function AddChannelSheet({ open, onOpenChange }: AddChannelSheetProps) {
 
   const isValid =
     form.username.startsWith("@")
-    && form.username.length > 2
-    && Number.isFinite(Number(form.pricePerPost))
-    && Number(form.pricePerPost) > 0;
+    && form.username.length > 2;
 
   const handleSubmit = () => {
     if (!isValid) return;
@@ -95,7 +71,7 @@ export function AddChannelSheet({ open, onOpenChange }: AddChannelSheetProps) {
     onOpenChange(nextOpen);
 
     if (!nextOpen && !addChannelMutation.isPending) {
-      setForm({ username: "", category: "crypto", pricePerPost: "" });
+      setForm({ username: "", category: "crypto" });
     }
   };
 
@@ -126,18 +102,6 @@ export function AddChannelSheet({ open, onOpenChange }: AddChannelSheetProps) {
           <CategoryPills
             selected={form.category}
             onSelect={(cat) => cat && setForm({ ...form, category: cat })}
-          />
-        </div>
-
-        {/* Price */}
-        <div className="space-y-1.5">
-          <SectionLabel>{`Price per Post (${DEFAULT_CURRENCY})`}</SectionLabel>
-          <input
-            type="number"
-            placeholder="500"
-            value={form.pricePerPost}
-            onChange={(e) => setForm({ ...form, pricePerPost: e.target.value })}
-            className="w-full h-11 px-3 rounded-xl bg-secondary border-0 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 

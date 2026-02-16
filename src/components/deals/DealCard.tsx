@@ -4,6 +4,7 @@ import { formatCurrency } from "@/lib/format";
 import { useRole } from "@/contexts/RoleContext";
 import { Text } from "@telegram-tools/ui-kit";
 import { Clock } from "lucide-react";
+import { ChannelAvatar } from "@/components/common/ChannelAvatar";
 
 interface DealCardProps {
   deal: Deal;
@@ -31,7 +32,12 @@ export function DealCard({ deal, onSelect }: DealCardProps) {
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-xl flex-shrink-0">
-            {counterpartyAvatar}
+            <ChannelAvatar
+              avatar={counterpartyAvatar}
+              name={counterpartyName}
+              fallback="👤"
+              className="h-full w-full text-xl"
+            />
           </div>
           <div className="min-w-0">
             <Text type="body" weight="medium">{counterpartyName}</Text>

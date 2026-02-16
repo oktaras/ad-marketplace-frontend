@@ -3,6 +3,7 @@ import { Channel, CHANNEL_CATEGORIES, ChannelCategory } from "@/types/marketplac
 import { Text, Button } from "@telegram-tools/ui-kit";
 import { formatNumber, formatCurrency } from "@/lib/format";
 import { Users, Eye, TrendingUp, BadgeCheck, Settings, BarChart3 } from "lucide-react";
+import { ChannelAvatar } from "@/components/common/ChannelAvatar";
 
 interface MyChannelCardProps {
   channel: Channel;
@@ -23,7 +24,11 @@ export function MyChannelCard({ channel, onManage }: MyChannelCardProps) {
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-2xl flex-shrink-0">
-          {channel.avatar}
+          <ChannelAvatar
+            avatar={channel.avatar}
+            name={channel.name}
+            className="h-full w-full text-2xl"
+          />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Text } from "@telegram-tools/ui-kit";
 import { CheckCircle2, Circle, Clock, Copy, ExternalLink } from "lucide-react";
-import { Deal, DEAL_STATUS_CONFIG, type CreativeMedia, type InlineButton } from "@/types/deal";
+import { BackendDealStatus, Deal, DEAL_STATUS_CONFIG, type CreativeMedia, type InlineButton } from "@/types/deal";
 import { AppSheet } from "@/components/common/AppSheet";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { formatCurrency } from "@/lib/format";
@@ -19,12 +19,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { env } from "@/app/config/env";
+import { ChannelAvatar } from "@/components/common/ChannelAvatar";
 import {
   getDealActivity,
   getDealCreative,
   getDealFinance,
   getDealPostingPlan,
+  openDealChat,
 } from "@/shared/api/deals";
+import { getApiErrorMessage } from "@/shared/api/error";
 
 interface DealDetailSheetProps {
   deal: Deal | null;
@@ -134,6 +137,58 @@ function getTonExplorerUrl(address: string): string {
     ? "https://testnet.tonviewer.com"
     : "https://tonviewer.com";
   return `${base}/${address}`;
+}
+
+const TERMINAL_BACKEND_STATUSES = new Set<BackendDealStatus>([
+  "COMPLETED",
+  "CANCELLED",
+  "EXPIRED",
+  "REFUNDED",
+  "RESOLVED",
+]);
+
+function isTerminalDeal(deal: Deal): boolean {
+  if (deal.backendStatus) {
+    return TERMINAL_BACKEND_STATUSES.has(deal.backendStatus);
+  }
+
+  return deal.status === "completed" || deal.status === "cancelled";
+}
+
+function openDealChatUrl(url: string): void {
+  const webApp = window.Telegram?.WebApp;
+
+  try {
+    if (webApp?.openTelegramLink) {
+      webApp.openTelegramLink(url);
+      window.setTimeout(() => {
+        try {
+          webApp.close?.();
+        } catch (closeError) {
+          console.warn("WebApp close failed:", closeError);
+        }
+      }, 120);
+      return;
+    }
+  } catch (error) {
+    console.warn("openTelegramLink failed:", error);
+  }
+
+  try {
+    if (webApp?.openLink) {
+      webApp.openLink(url, { try_instant_view: false });
+      return;
+    }
+  } catch (error) {
+    console.warn("openLink failed:", error);
+  }
+
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (opened) {
+    return;
+  }
+
+  window.location.href = url;
 }
 
 export function DealDetailSheet({
@@ -262,6 +317,42 @@ export function DealDetailSheet({
     }
   };
 
+  const handleOpenDealChat = async () => {
+    if (deal.dealChat?.isOpenable === false) {
+      toast({
+        title: "Deal chat is closed",
+        description: "This deal chat can no longer be opened.",
+      });
+      return;
+    }
+
+    let targetUrl = deal.openDealChatUrl ?? null;
+    try {
+      const opened = await openDealChat(deal.id);
+      if (opened.openDealChatUrl) {
+        targetUrl = opened.openDealChatUrl;
+      }
+    } catch (error) {
+      toast({
+        title: "Failed to open deal chat",
+        description: getApiErrorMessage(error, "Please try again."),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (targetUrl) {
+      openDealChatUrl(targetUrl);
+      return;
+    }
+
+    toast({
+      title: "Open bot unavailable",
+      description: "Bot deep link is not configured yet.",
+      variant: "destructive",
+    });
+  };
+
   return (
     <AppSheet open={open} onOpenChange={onOpenChange} title="Deal Details" fullHeight>
       <Tabs value={tab} onValueChange={(next) => setTab(next as DealDetailsTab)} className="space-y-4">
@@ -280,7 +371,12 @@ export function DealDetailSheet({
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-2xl">
-                  {role === "advertiser" ? deal.channelAvatar : deal.advertiserAvatar}
+                  <ChannelAvatar
+                    avatar={role === "advertiser" ? deal.channelAvatar : deal.advertiserAvatar}
+                    name={role === "advertiser" ? deal.channelName : deal.advertiserName}
+                    fallback="👤"
+                    className="h-full w-full text-2xl"
+                  />
                 </div>
                 <div>
                   <Text type="body" weight="medium">
@@ -321,6 +417,13 @@ export function DealDetailSheet({
                 <Text type="caption1" color="secondary">{chatStatusHint}</Text>
               </div>
             ) : null}
+
+            {!isTerminalDeal(deal) ? (
+              <Button variant="outline" className="w-full" onClick={() => void handleOpenDealChat()}>
+                <ExternalLink className="w-4 h-4" />
+                Chat through Bot
+              </Button>
+            ) : null}
           </div>
 
           <DealProgressRail deal={deal} />
@@ -338,6 +441,7 @@ export function DealDetailSheet({
             acceptTermsLoading={acceptTermsLoading}
             onCancelDeal={onCancelDeal}
             cancelDealLoading={cancelDealLoading}
+            includeChatAction={false}
           />
         </TabsContent>
 
@@ -420,29 +524,13 @@ export function DealDetailSheet({
               <EscrowStatusPanel
                 deal={financeDeal ?? deal}
                 role={role}
+                platformFeeAmount={financeData?.platformFeeAmount}
+                publisherAmount={financeData?.publisherAmount}
                 onFundDeal={onFundDeal}
                 fundDealLoading={fundDealLoading}
                 onVerifyPayment={onVerifyPayment}
                 verifyPaymentLoading={verifyPaymentLoading}
               />
-
-              <div className="bg-card rounded-xl border border-border p-4 space-y-3">
-                <Text type="subheadline1" weight="medium">Deal Amount Breakdown</Text>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-secondary/50 rounded-lg px-3 py-2">
-                    <Text type="caption2" color="secondary">Platform Fee</Text>
-                    <Text type="caption1" weight="medium">
-                      {formatCurrency(financeData?.platformFeeAmount ?? 0, financeData?.currency ?? deal.currency)}
-                    </Text>
-                  </div>
-                  <div className="bg-secondary/50 rounded-lg px-3 py-2">
-                    <Text type="caption2" color="secondary">Publisher Payout</Text>
-                    <Text type="caption1" weight="medium">
-                      {formatCurrency(financeData?.publisherAmount ?? 0, financeData?.currency ?? deal.currency)}
-                    </Text>
-                  </div>
-                </div>
-              </div>
 
               <div className="bg-card rounded-xl border border-border p-4 space-y-3">
                 <Text type="subheadline1" weight="medium">Escrow Wallet</Text>
@@ -499,7 +587,7 @@ export function DealDetailSheet({
 
         <TabsContent value="activity" className="space-y-4">
           <ActivityTimeline activity={activityData} loading={activityQuery.isLoading} />
-          <DealActions deal={deal} role={role} chatOnly />
+          <DealActions deal={deal} role={role} chatOnly includeChatAction={false} />
         </TabsContent>
       </Tabs>
     </AppSheet>

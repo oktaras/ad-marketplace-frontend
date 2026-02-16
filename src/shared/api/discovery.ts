@@ -441,6 +441,24 @@ function normalizeSearch(search: string | undefined): string | undefined {
   return trimmed.length >= 3 ? trimmed : undefined;
 }
 
+function normalizeRangeValue(value: string | undefined): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return undefined;
+  }
+
+  return trimmed;
+}
+
 function normalizePagination(
   raw: {
     page?: number;
@@ -481,10 +499,22 @@ export async function getDiscoveryBriefs(params: {
   categories?: string[];
   search?: string;
   sortBy?: DiscoveryBriefSortBy;
+  budgetMin?: string;
+  budgetMax?: string;
+  minSubscribers?: string;
+  maxSubscribers?: string;
+  minApplications?: string;
+  maxApplications?: string;
   page?: number;
   limit?: number;
 }): Promise<DiscoveryPageResult<DiscoveryBrief>> {
   const searchQuery = normalizeSearch(params.search);
+  const budgetMin = normalizeRangeValue(params.budgetMin);
+  const budgetMax = normalizeRangeValue(params.budgetMax);
+  const minSubscribers = normalizeRangeValue(params.minSubscribers);
+  const maxSubscribers = normalizeRangeValue(params.maxSubscribers);
+  const minApplications = normalizeRangeValue(params.minApplications);
+  const maxApplications = normalizeRangeValue(params.maxApplications);
   const requestedPage = params.page ?? 1;
   const requestedLimit = params.limit ?? 10;
 
@@ -496,6 +526,12 @@ export async function getDiscoveryBriefs(params: {
       limit: requestedLimit,
       ...(params.categories && params.categories.length > 0 ? { category: params.categories.join(',') } : {}),
       ...(searchQuery ? { search: searchQuery } : {}),
+      ...(budgetMin ? { minBudget: budgetMin } : {}),
+      ...(budgetMax ? { maxBudget: budgetMax } : {}),
+      ...(minSubscribers ? { minSubscribers } : {}),
+      ...(maxSubscribers ? { maxSubscribers } : {}),
+      ...(minApplications ? { minApplications } : {}),
+      ...(maxApplications ? { maxApplications } : {}),
       sortBy: params.sortBy ?? "created_desc",
     },
   }) as BriefsResponse;
@@ -618,10 +654,26 @@ export async function getDiscoveryListings(params: {
   categories?: string[];
   search?: string;
   sortBy?: DiscoveryListingSortBy;
+  minPrice?: string;
+  maxPrice?: string;
+  minSubscribers?: string;
+  maxSubscribers?: string;
+  minViews?: string;
+  maxViews?: string;
+  minEngagementRate?: string;
+  maxEngagementRate?: string;
   page?: number;
   limit?: number;
 }): Promise<DiscoveryPageResult<DiscoveryListing>> {
   const searchQuery = normalizeSearch(params.search);
+  const minPrice = normalizeRangeValue(params.minPrice);
+  const maxPrice = normalizeRangeValue(params.maxPrice);
+  const minSubscribers = normalizeRangeValue(params.minSubscribers);
+  const maxSubscribers = normalizeRangeValue(params.maxSubscribers);
+  const minViews = normalizeRangeValue(params.minViews);
+  const maxViews = normalizeRangeValue(params.maxViews);
+  const minEngagementRate = normalizeRangeValue(params.minEngagementRate);
+  const maxEngagementRate = normalizeRangeValue(params.maxEngagementRate);
   const requestedPage = params.page ?? 1;
   const requestedLimit = params.limit ?? 10;
 
@@ -633,6 +685,14 @@ export async function getDiscoveryListings(params: {
       limit: requestedLimit,
       ...(params.categories && params.categories.length > 0 ? { category: params.categories.join(',') } : {}),
       ...(searchQuery ? { search: searchQuery } : {}),
+      ...(minPrice ? { minPrice } : {}),
+      ...(maxPrice ? { maxPrice } : {}),
+      ...(minSubscribers ? { minSubscribers } : {}),
+      ...(maxSubscribers ? { maxSubscribers } : {}),
+      ...(minViews ? { minViews } : {}),
+      ...(maxViews ? { maxViews } : {}),
+      ...(minEngagementRate ? { minEngagementRate } : {}),
+      ...(maxEngagementRate ? { maxEngagementRate } : {}),
       sortBy: params.sortBy ?? 'created_desc',
     },
   }) as ListingsResponse;

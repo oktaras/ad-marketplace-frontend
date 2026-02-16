@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { APPLICATION_STATUS_BADGE } from "@/shared/notifications/status-maps";
 import { useTelegramPopupConfirm } from "@/shared/lib/telegram-popup-confirm";
+import { ChannelAvatar } from "@/components/common/ChannelAvatar";
 
 export interface BriefApplicationCardItem {
   id: string;
@@ -65,7 +66,11 @@ export function ApplicationCard({
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 flex-1">
           <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-lg flex-shrink-0">
-            {application.channelAvatar}
+            <ChannelAvatar
+              avatar={application.channelAvatar}
+              name={application.channelName}
+              className="h-full w-full text-lg"
+            />
           </div>
           <div className="flex-1 min-w-0">
             <Text type="subheadline1" weight="medium">

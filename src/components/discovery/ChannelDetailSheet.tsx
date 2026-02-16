@@ -10,6 +10,7 @@ import { getDiscoveryChannelAnalytics, getDiscoveryChannelGraphs } from "@/share
 import type { DiscoveryChannelAnalytics, DiscoveryChannelGraph } from "@/shared/api/discovery";
 import { chartTooltipStyle } from "@/shared/notifications/chart-tooltip";
 import { analyticsMessages } from "@/shared/analytics/messages";
+import { ChannelAvatar } from "@/components/common/ChannelAvatar";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -529,7 +530,11 @@ export function ChannelDetailSheet({
         <div className="space-y-3 pb-4 border-b border-border">
           <div className="flex items-start gap-3">
             <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center text-3xl flex-shrink-0">
-              {channel.avatar}
+              <ChannelAvatar
+                avatar={channel.avatar}
+                name={channel.name}
+                className="h-full w-full text-3xl"
+              />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">

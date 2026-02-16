@@ -9,6 +9,8 @@ import type { UserRole } from "@/contexts/RoleContext";
 interface EscrowStatusPanelProps {
   deal: Deal;
   role: UserRole | null;
+  platformFeeAmount?: number | null;
+  publisherAmount?: number | null;
   onFundDeal?: (dealId: string) => void;
   onVerifyPayment?: (dealId: string) => void;
   fundDealLoading?: boolean;
@@ -63,6 +65,8 @@ const escrowVariantMap = {
 export function EscrowStatusPanel({
   deal,
   role,
+  platformFeeAmount,
+  publisherAmount,
   onFundDeal,
   onVerifyPayment,
   fundDealLoading = false,
@@ -77,6 +81,14 @@ export function EscrowStatusPanel({
   const showVerifyPayment = role === "advertiser" && Boolean(availableActions?.verifyPayment) && Boolean(onVerifyPayment);
 
   const hasEscrowActions = showFundEscrow || showVerifyPayment;
+  const knownPlatformFeeAmount = typeof platformFeeAmount === "number"
+    ? platformFeeAmount
+    : (typeof publisherAmount === "number" ? Math.max(amount - publisherAmount, 0) : null);
+  const knownPublisherAmount = typeof publisherAmount === "number"
+    ? publisherAmount
+    : (typeof platformFeeAmount === "number" ? Math.max(amount - platformFeeAmount, 0) : null);
+  const advertiserLabel = role === "advertiser" ? "You pay" : "Advertiser pays";
+  const publisherLabel = role === "publisher" ? "You receive" : "Publisher receives";
 
   return (
     <div className="bg-gradient-to-br from-secondary/50 to-secondary/25 rounded-xl border border-border p-4 space-y-3">
@@ -97,6 +109,26 @@ export function EscrowStatusPanel({
       <div className="bg-card rounded-lg px-3 py-2 border border-border">
         <Text type="caption2" color="secondary">Amount</Text>
         <Text type="subheadline1" weight="medium">{formatCurrency(amount, currency)}</Text>
+      </div>
+
+      <div className="bg-card rounded-lg px-3 py-2 border border-border space-y-2">
+        <Text type="caption2" color="secondary">Payment Flow</Text>
+        <div className="flex items-center justify-between gap-2">
+          <Text type="caption1" color="secondary">{advertiserLabel}</Text>
+          <Text type="caption1" weight="medium">{formatCurrency(amount, currency)}</Text>
+        </div>
+        {knownPlatformFeeAmount !== null ? (
+          <div className="flex items-center justify-between gap-2">
+            <Text type="caption1" color="secondary">Platform receives (fee)</Text>
+            <Text type="caption1" weight="medium">{formatCurrency(knownPlatformFeeAmount, currency)}</Text>
+          </div>
+        ) : null}
+        {knownPublisherAmount !== null ? (
+          <div className="flex items-center justify-between gap-2">
+            <Text type="caption1" color="secondary">{publisherLabel}</Text>
+            <Text type="caption1" weight="medium">{formatCurrency(knownPublisherAmount, currency)}</Text>
+          </div>
+        ) : null}
       </div>
 
       <div>

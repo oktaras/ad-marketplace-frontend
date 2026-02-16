@@ -17,6 +17,7 @@ import { getMyChannels } from "@/shared/api/my-stuff";
 import { useAuthStore } from "@/features/auth/model/auth.store";
 import { inAppToasts } from "@/shared/notifications/in-app";
 import { normalizeCurrency } from "@/types/currency";
+import { getTelegramChannelAvatarUrl } from "@/shared/lib/channel-avatar";
 
 interface BriefApplySheetProps {
   brief: Brief | null;
@@ -87,6 +88,7 @@ function mapBriefFormatToAdFormatType(format: Brief["format"]): string {
 function mapApiChannelToSelectChannel(channel: DiscoveryChannel): Channel {
   const primaryCategory = channel.categories?.[0];
   const primaryFormat = channel.formats?.[0];
+  const channelAvatarUrl = getTelegramChannelAvatarUrl(channel.username);
   const adFormats = (channel.formats ?? [])
     .map((format) => {
       const normalizedType = String(format.type || "").toLowerCase();
@@ -108,7 +110,7 @@ function mapApiChannelToSelectChannel(channel: DiscoveryChannel): Channel {
     id: channel.id,
     name: channel.title || "Untitled channel",
     username: channel.username ? `@${channel.username.replace(/^@+/, "")}` : "@unknown",
-    avatar: primaryCategory?.icon || "📡",
+    avatar: channelAvatarUrl || primaryCategory?.icon || "📡",
     category: (primaryCategory?.slug || "general") as Channel["category"],
     subscribers: channel.stats?.subscribers ?? 0,
     avgViews: channel.stats?.avgViews ?? 0,

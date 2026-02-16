@@ -34,6 +34,7 @@ type ListingSort =
   | "subscribers_desc"
   | "views_desc"
   | "er_desc";
+type ListingRangeKey = "price" | "subscribers" | "views" | "engagementRate";
 
 const LISTING_SORT_OPTIONS: { value: ListingSort; label: string }[] = [
   { value: "created_desc", label: "Newest first" },
@@ -44,6 +45,40 @@ const LISTING_SORT_OPTIONS: { value: ListingSort; label: string }[] = [
   { value: "views_desc", label: "Views: High → Low" },
   { value: "er_desc", label: "Engagement: High → Low" },
 ];
+
+const LISTING_RANGE_OPTIONS = [
+  { key: "price", label: "Price", step: "1", fromPlaceholder: "From", toPlaceholder: "To" },
+  { key: "subscribers", label: "Subscribers", step: "1", fromPlaceholder: "From", toPlaceholder: "To" },
+  { key: "views", label: "Views", step: "1", fromPlaceholder: "From", toPlaceholder: "To" },
+  { key: "engagementRate", label: "Engagement Rate", step: "0.01", fromPlaceholder: "From", toPlaceholder: "To" },
+] as const;
+
+const INITIAL_LISTING_RANGES: Record<ListingRangeKey, { from: string; to: string }> = {
+  price: { from: "", to: "" },
+  subscribers: { from: "", to: "" },
+  views: { from: "", to: "" },
+  engagementRate: { from: "", to: "" },
+};
+
+function hasAnyRangeValue(ranges: Record<ListingRangeKey, { from: string; to: string }>): boolean {
+  return Object.values(ranges).some((range) => (
+    range.from.trim().length > 0 || range.to.trim().length > 0
+  ));
+}
+
+function formatRangeLabel(label: string, from: string, to: string): string {
+  const fromValue = from.trim();
+  const toValue = to.trim();
+  if (fromValue && toValue) {
+    return `${label}: ${fromValue} - ${toValue}`;
+  }
+
+  if (fromValue) {
+    return `${label}: from ${fromValue}`;
+  }
+
+  return `${label}: to ${toValue}`;
+}
 
 export default function Listings() {
   const { role } = useRole();
@@ -57,14 +92,33 @@ export default function Listings() {
     categories: [],
     statuses: [],
     sort: "created_desc",
+    ranges: INITIAL_LISTING_RANGES,
   });
 
   const debouncedSearch = useDebouncedValue(filters.search, SEARCH_DEBOUNCE_MS);
   const normalizedSearch = debouncedSearch.trim();
   const activeSearch = normalizedSearch.length >= SEARCH_MIN_LENGTH ? normalizedSearch : "";
   const waitingForSearchThreshold = normalizedSearch.length > 0 && normalizedSearch.length < SEARCH_MIN_LENGTH;
+  const listingRanges: Record<ListingRangeKey, { from: string; to: string }> = {
+    ...INITIAL_LISTING_RANGES,
+    ...(filters.ranges ?? {}),
+  };
   const categoryKey = filters.categories.slice().sort().join(",");
-  const hasActiveFilters = Boolean(filters.search.trim() || filters.categories.length > 0);
+  const rangesKey = [
+    listingRanges.price.from,
+    listingRanges.price.to,
+    listingRanges.subscribers.from,
+    listingRanges.subscribers.to,
+    listingRanges.views.from,
+    listingRanges.views.to,
+    listingRanges.engagementRate.from,
+    listingRanges.engagementRate.to,
+  ].join("|");
+  const hasActiveFilters = Boolean(
+    filters.search.trim()
+    || filters.categories.length > 0
+    || hasAnyRangeValue(listingRanges),
+  );
 
   const categoriesQuery = useQuery({
     queryKey: ["listings", "categories"],
@@ -106,16 +160,80 @@ export default function Listings() {
       });
     });
 
+    if (listingRanges.price.from.trim() || listingRanges.price.to.trim()) {
+      chips.push({
+        key: "range-price",
+        label: formatRangeLabel("Price", listingRanges.price.from, listingRanges.price.to),
+        onRemove: () => setFilters((previous) => ({
+          ...previous,
+          ranges: {
+            ...(previous.ranges ?? {}),
+            price: { from: "", to: "" },
+          },
+        })),
+      });
+    }
+
+    if (listingRanges.subscribers.from.trim() || listingRanges.subscribers.to.trim()) {
+      chips.push({
+        key: "range-subscribers",
+        label: formatRangeLabel("Subscribers", listingRanges.subscribers.from, listingRanges.subscribers.to),
+        onRemove: () => setFilters((previous) => ({
+          ...previous,
+          ranges: {
+            ...(previous.ranges ?? {}),
+            subscribers: { from: "", to: "" },
+          },
+        })),
+      });
+    }
+
+    if (listingRanges.views.from.trim() || listingRanges.views.to.trim()) {
+      chips.push({
+        key: "range-views",
+        label: formatRangeLabel("Views", listingRanges.views.from, listingRanges.views.to),
+        onRemove: () => setFilters((previous) => ({
+          ...previous,
+          ranges: {
+            ...(previous.ranges ?? {}),
+            views: { from: "", to: "" },
+          },
+        })),
+      });
+    }
+
+    if (listingRanges.engagementRate.from.trim() || listingRanges.engagementRate.to.trim()) {
+      chips.push({
+        key: "range-engagement-rate",
+        label: formatRangeLabel("Engagement", listingRanges.engagementRate.from, listingRanges.engagementRate.to),
+        onRemove: () => setFilters((previous) => ({
+          ...previous,
+          ranges: {
+            ...(previous.ranges ?? {}),
+            engagementRate: { from: "", to: "" },
+          },
+        })),
+      });
+    }
+
     return chips;
-  }, [categoryNameBySlug, filters.categories, filters.search]);
+  }, [categoryNameBySlug, filters.categories, filters.search, listingRanges.engagementRate.from, listingRanges.engagementRate.to, listingRanges.price.from, listingRanges.price.to, listingRanges.subscribers.from, listingRanges.subscribers.to, listingRanges.views.from, listingRanges.views.to]);
 
   const listingsQuery = useInfiniteQuery({
-    queryKey: ["listings", "discovery", categoryKey, activeSearch, filters.sort],
+    queryKey: ["listings", "discovery", categoryKey, activeSearch, filters.sort, rangesKey],
     initialPageParam: 1,
     queryFn: ({ pageParam }) => getDiscoveryListings({
       categories: filters.categories,
       search: activeSearch,
       sortBy: filters.sort,
+      minPrice: listingRanges.price.from,
+      maxPrice: listingRanges.price.to,
+      minSubscribers: listingRanges.subscribers.from,
+      maxSubscribers: listingRanges.subscribers.to,
+      minViews: listingRanges.views.from,
+      maxViews: listingRanges.views.to,
+      minEngagementRate: listingRanges.engagementRate.from,
+      maxEngagementRate: listingRanges.engagementRate.to,
       limit: DISCOVERY_LIMIT,
       page: pageParam,
     }),
@@ -141,6 +259,7 @@ export default function Listings() {
       search: "",
       categories: [],
       statuses: [],
+      ranges: INITIAL_LISTING_RANGES,
     }));
   };
 
@@ -260,6 +379,13 @@ export default function Listings() {
           value: entry.slug,
           label: entry.name,
           icon: entry.icon,
+        }))}
+        rangeOptions={LISTING_RANGE_OPTIONS.map((option) => ({
+          key: option.key,
+          label: option.label,
+          step: option.step,
+          fromPlaceholder: option.fromPlaceholder,
+          toPlaceholder: option.toPlaceholder,
         }))}
         searchPlaceholder="Search listings…"
       />

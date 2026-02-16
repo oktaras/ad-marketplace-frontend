@@ -319,23 +319,6 @@ export default function MyChannels() {
   return (
     <AppLayout>
       <PageContainer className="py-4 space-y-4">
-        <div className="flex justify-end">
-          <button
-            onClick={() => {
-              if (publisherTab === "channels") {
-                setAddChannelOpen(true);
-                return;
-              }
-
-              setCreateListingOpen(true);
-            }}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
-          >
-            <Plus className="h-4 w-4" />
-            {publisherTab === "channels" ? "Add Channel" : "New Listing"}
-          </button>
-        </div>
-
         <StatusTabs
           tabs={[
             { value: "channels", label: "Channels", count: totalChannels },
@@ -347,13 +330,20 @@ export default function MyChannels() {
 
         {publisherTab === "channels" ? (
           <>
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-nowrap">
               <button
                 onClick={() => setChannelFilterSheetOpen(true)}
-                className="w-full flex items-center justify-center gap-2 h-10 rounded-lg border border-border bg-card text-sm font-medium"
+                className="flex-1 min-w-0 flex items-center justify-center gap-2 h-10 rounded-lg border border-border bg-card text-sm font-medium whitespace-nowrap"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 Filters & Sort
+              </button>
+              <button
+                onClick={() => setAddChannelOpen(true)}
+                className="shrink-0 h-10 flex items-center gap-1 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4" />
+                Add Channel
               </button>
             </div>
 
@@ -425,13 +415,20 @@ export default function MyChannels() {
           </>
         ) : (
           <>
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-nowrap">
               <button
                 onClick={() => setListingFilterSheetOpen(true)}
-                className="w-full flex items-center justify-center gap-2 h-10 rounded-lg border border-border bg-card text-sm font-medium"
+                className="flex-1 min-w-0 flex items-center justify-center gap-2 h-10 rounded-lg border border-border bg-card text-sm font-medium whitespace-nowrap"
               >
                 <SlidersHorizontal className="h-4 w-4" />
                 Filters & Sort
+              </button>
+              <button
+                onClick={() => setCreateListingOpen(true)}
+                className="shrink-0 h-10 flex items-center gap-1 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4" />
+                New Listing
               </button>
             </div>
 

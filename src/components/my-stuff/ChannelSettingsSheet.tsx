@@ -19,6 +19,7 @@ import {
 import { getApiErrorMessage } from "@/shared/api/error";
 import { inAppToasts } from "@/shared/notifications/in-app";
 import { ChannelAnalyticsPanel } from "@/components/analytics/ChannelAnalyticsPanel";
+import { ChannelAvatar } from "@/components/common/ChannelAvatar";
 
 interface ChannelSettingsSheetProps {
   channel: Channel | null;
@@ -129,7 +130,17 @@ export function ChannelSettingsSheet({ channel, open, onOpenChange }: ChannelSet
     <AppSheet
       open={open}
       onOpenChange={handleOpen}
-      title={<><span className="text-xl">{channel.avatar}</span> {channel.name} {channel.verified && <BadgeCheck className="h-4 w-4 text-primary" />}</>}
+      title={(
+        <>
+          <ChannelAvatar
+            avatar={channel.avatar}
+            name={channel.name}
+            className="inline-flex h-6 w-6 text-sm mr-2 align-middle"
+          />
+          {channel.name}
+          {channel.verified && <BadgeCheck className="h-4 w-4 text-primary" />}
+        </>
+      )}
       fullHeight
     >
       <div className="flex gap-1 bg-secondary/50 rounded-lg p-1 mt-3 mb-5">

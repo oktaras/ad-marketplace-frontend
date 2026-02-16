@@ -15,11 +15,25 @@ export interface FilterOption {
   icon?: string | null;
 }
 
+export interface FilterRangeValue {
+  from: string;
+  to: string;
+}
+
+export interface FilterRangeOption {
+  key: string;
+  label: string;
+  fromPlaceholder?: string;
+  toPlaceholder?: string;
+  step?: string;
+}
+
 export interface FilterSortState<S extends string = string> {
   search: string;
   categories: string[];
   statuses: string[];
   sort: S;
+  ranges?: Record<string, FilterRangeValue>;
 }
 
 interface FilterSortSheetProps<S extends string = string> {
@@ -35,6 +49,7 @@ interface FilterSortSheetProps<S extends string = string> {
   showCategory?: boolean;
   showStatus?: boolean;
   searchPlaceholder?: string;
+  rangeOptions?: FilterRangeOption[];
 }
 
 function toggleValue(values: string[], value: string): string[] {
@@ -56,6 +71,7 @@ export function FilterSortSheet<S extends string = string>({
   showCategory = true,
   showStatus = false,
   searchPlaceholder = "Search…",
+  rangeOptions = [],
 }: FilterSortSheetProps<S>) {
   const [draft, setDraft] = useState<FilterSortState<S>>(value);
 
@@ -66,32 +82,54 @@ export function FilterSortSheet<S extends string = string>({
   }, [open, value]);
 
   const defaultSort = sortOptions[0]?.value ?? ("" as S);
+  const hasRangeValues = useMemo(
+    () => Object.values(draft.ranges ?? {}).some((range) => (
+      range.from.trim().length > 0 || range.to.trim().length > 0
+    )),
+    [draft.ranges],
+  );
   const canReset = useMemo(
     () => (
       draft.search.trim().length > 0
       || draft.categories.length > 0
       || draft.statuses.length > 0
+      || hasRangeValues
       || draft.sort !== defaultSort
     ),
-    [defaultSort, draft],
+    [defaultSort, draft, hasRangeValues],
   );
 
   const handleApply = () => {
+    const normalizedRanges = Object.entries(draft.ranges ?? {}).reduce<Record<string, FilterRangeValue>>((acc, [key, range]) => {
+      acc[key] = {
+        from: range.from.trim(),
+        to: range.to.trim(),
+      };
+      return acc;
+    }, {});
+
     onApply({
       ...draft,
       search: draft.search.trim(),
       categories: Array.from(new Set(draft.categories)),
       statuses: Array.from(new Set(draft.statuses)),
+      ranges: normalizedRanges,
     });
     onOpenChange(false);
   };
 
   const handleReset = () => {
+    const resetRanges = rangeOptions.reduce<Record<string, FilterRangeValue>>((acc, option) => {
+      acc[option.key] = { from: "", to: "" };
+      return acc;
+    }, {});
+
     setDraft({
       search: "",
       categories: [],
       statuses: [],
       sort: defaultSort,
+      ranges: resetRanges,
     });
   };
 
@@ -171,6 +209,64 @@ export function FilterSortSheet<S extends string = string>({
                     {option.icon ? <span>{option.icon}</span> : null}
                     {option.label}
                   </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {rangeOptions.length > 0 && (
+          <div>
+            <SectionLabel>Ranges</SectionLabel>
+            <div className="mt-2 flex flex-col gap-3">
+              {rangeOptions.map((option) => {
+                const valueFrom = draft.ranges?.[option.key]?.from ?? "";
+                const valueTo = draft.ranges?.[option.key]?.to ?? "";
+
+                return (
+                  <div key={option.key} className="space-y-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">{option.label}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step={option.step ?? "1"}
+                        value={valueFrom}
+                        onChange={(event) => setDraft((previous) => ({
+                          ...previous,
+                          ranges: {
+                            ...(previous.ranges ?? {}),
+                            [option.key]: {
+                              from: event.target.value,
+                              to: previous.ranges?.[option.key]?.to ?? "",
+                            },
+                          },
+                        }))}
+                        placeholder={option.fromPlaceholder ?? "From"}
+                        className="h-10 rounded-lg bg-secondary border-0 px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step={option.step ?? "1"}
+                        value={valueTo}
+                        onChange={(event) => setDraft((previous) => ({
+                          ...previous,
+                          ranges: {
+                            ...(previous.ranges ?? {}),
+                            [option.key]: {
+                              from: previous.ranges?.[option.key]?.from ?? "",
+                              to: event.target.value,
+                            },
+                          },
+                        }))}
+                        placeholder={option.toPlaceholder ?? "To"}
+                        className="h-10 rounded-lg bg-secondary border-0 px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                  </div>
                 );
               })}
             </div>

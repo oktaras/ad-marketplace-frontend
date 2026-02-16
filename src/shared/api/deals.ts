@@ -21,6 +21,7 @@ import type {
 } from "@/types/deal";
 import type { UserRole } from "@/contexts/RoleContext";
 import { DEFAULT_CURRENCY } from "@/types/currency";
+import { getTelegramChannelAvatarUrl } from "@/shared/lib/channel-avatar";
 
 type DealsPagination = {
   page: number;
@@ -767,6 +768,7 @@ function mapDeal(raw: RawDeal): Deal {
   const backendStatus = normalizeBackendDealStatus(raw.workflowStatus || raw.status, raw.status);
   const categories = Array.isArray(raw.channel.categories) ? raw.channel.categories : [];
   const primaryCategory = categories[0];
+  const channelAvatarUrl = getTelegramChannelAvatarUrl(raw.channel.username);
   const advertiserName = raw.isPublisher
     ? "Advertiser"
     : (raw.advertiser.firstName || raw.advertiser.username || "Advertiser");
@@ -777,7 +779,7 @@ function mapDeal(raw: RawDeal): Deal {
     briefTitle: raw.brief?.title || undefined,
     channelId: raw.channelId,
     channelName: raw.channel.title || "Untitled channel",
-    channelAvatar: primaryCategory?.icon || "📡",
+    channelAvatar: channelAvatarUrl || primaryCategory?.icon || "📡",
     channelUsername: normalizeChannelUsername(raw.channel.username),
     advertiserName,
     advertiserAvatar: "👤",

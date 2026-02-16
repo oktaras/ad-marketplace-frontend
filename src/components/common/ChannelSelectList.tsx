@@ -3,6 +3,7 @@ import { Text } from "@telegram-tools/ui-kit";
 import { formatNumber } from "@/lib/format";
 import { CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ChannelAvatar } from "@/components/common/ChannelAvatar";
 
 interface ChannelSelectListProps {
   channels: Channel[];
@@ -46,7 +47,11 @@ export function ChannelSelectList({ channels, selectedId, onSelect, disabledIds 
             )}
           >
             <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-lg flex-shrink-0">
-              {ch.avatar}
+              <ChannelAvatar
+                avatar={ch.avatar}
+                name={ch.name}
+                className="h-full w-full text-lg"
+              />
             </div>
             <div className="flex-1 text-left min-w-0">
               <Text type="subheadline2" weight="medium">{ch.name}</Text>

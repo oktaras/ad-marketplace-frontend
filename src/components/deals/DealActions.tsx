@@ -68,6 +68,7 @@ function getActions(params: {
   onAcceptTerms?: (dealId: string) => void;
   acceptTermsLoading: boolean;
   chatOnly: boolean;
+  includeChatAction: boolean;
 }): DealAction[] {
   const {
     deal,
@@ -75,6 +76,7 @@ function getActions(params: {
     onAcceptTerms,
     acceptTermsLoading,
     chatOnly,
+    includeChatAction,
   } = params;
 
   const actions: DealAction[] = [];
@@ -89,9 +91,9 @@ function getActions(params: {
     });
   }
 
-  if (!isTerminalDeal(deal)) {
+  if (includeChatAction && !isTerminalDeal(deal)) {
     actions.push({
-      label: "Open in Bot",
+      label: "Chat through Bot",
       icon: <ExternalLink className="w-4 h-4" />,
       variant: "outline",
       onClick: async () => {
@@ -152,6 +154,7 @@ interface DealActionsProps {
   acceptTermsLoading?: boolean;
   cancelDealLoading?: boolean;
   chatOnly?: boolean;
+  includeChatAction?: boolean;
 }
 
 export function DealActions({
@@ -162,6 +165,7 @@ export function DealActions({
   acceptTermsLoading = false,
   cancelDealLoading = false,
   chatOnly = false,
+  includeChatAction = true,
 }: DealActionsProps) {
   const confirmWithPopup = useTelegramPopupConfirm();
   const actions = getActions({
@@ -170,7 +174,9 @@ export function DealActions({
     onAcceptTerms,
     acceptTermsLoading,
     chatOnly,
+    includeChatAction,
   });
+  const canShowCancel = !chatOnly && deal.availableActions?.cancelDeal && !isTerminalDeal(deal);
   const cancelConfirmationDescription = env.dealChatDeleteTopicsOnClose
     ? "This action cannot be undone. Both parties will be notified of the cancellation and any held funds will be refunded. Deal-related chat topics will be deleted and message history will be lost."
     : "This action cannot be undone. Both parties will be notified of the cancellation and any held funds will be refunded.";
@@ -191,7 +197,7 @@ export function DealActions({
     onCancelDeal?.(deal.id);
   };
 
-  if (actions.length === 0 && isTerminalDeal(deal)) {
+  if (actions.length === 0 && !canShowCancel) {
     return null;
   }
 
@@ -225,7 +231,7 @@ export function DealActions({
       )}
 
       {/* Cancel deal button */}
-      {!chatOnly && deal.availableActions?.cancelDeal && !isTerminalDeal(deal) && (
+      {canShowCancel && (
         <Button
           variant="ghost"
           className="w-full text-destructive hover:text-destructive"

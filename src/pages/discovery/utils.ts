@@ -5,6 +5,7 @@ import type { MyListingItem } from "@/shared/api/my-stuff";
 import { Brief, Channel, CHANNEL_CATEGORIES } from "@/types/marketplace";
 import { Listing, ListingStatus } from "@/types/listing";
 import { normalizeCurrency } from "@/types/currency";
+import { getTelegramChannelAvatarUrl } from "@/shared/lib/channel-avatar";
 
 export const SEARCH_MIN_LENGTH = 3;
 export const SEARCH_DEBOUNCE_MS = 300;
@@ -198,6 +199,7 @@ export function mapDiscoveryChannel(
   const primaryCategory = channel.categories?.[0];
   const primarySlug = primaryCategory?.slug || "general";
   const enrichedCategory = categoryBySlug.get(primarySlug);
+  const channelAvatarUrl = getTelegramChannelAvatarUrl(channel.username);
   const mainFormat = channel.formats?.[0];
   const adFormats = (channel.formats ?? [])
     .map((format) => {
@@ -222,7 +224,7 @@ export function mapDiscoveryChannel(
     id: channel.id,
     name: channel.title || "Untitled channel",
     username: normalizeUsername(channel.username),
-    avatar: enrichedCategory?.icon || primaryCategory?.icon || "📡",
+    avatar: channelAvatarUrl || enrichedCategory?.icon || primaryCategory?.icon || "📡",
     category: primarySlug,
     subscribers: channel.stats?.subscribers ?? 0,
     avgViews: channel.stats?.avgViews ?? 0,
@@ -275,6 +277,7 @@ export function mapMyListing(
   const primaryCategory = listing.channel.categories?.[0];
   const primarySlug = primaryCategory?.slug || "general";
   const enrichedCategory = categoryBySlug.get(primarySlug);
+  const channelAvatarUrl = getTelegramChannelAvatarUrl(listing.channel.username);
   const offerByFormat = new Map<string, MyListingItem["formatOffers"][number]>();
   (listing.formatOffers ?? []).forEach((offer) => {
     const mappedFormat = mapListingFormat(offer.adFormat?.type);
@@ -319,7 +322,7 @@ export function mapMyListing(
     id: listing.id,
     channelId: listing.channel.id,
     channelName: listing.channel.title || "Untitled channel",
-    channelAvatar: enrichedCategory?.icon || primaryCategory?.icon || "📡",
+    channelAvatar: channelAvatarUrl || enrichedCategory?.icon || primaryCategory?.icon || "📡",
     channelUsername: normalizeUsername(listing.channel.username),
     title: listing.title || listing.adFormat?.name || "Untitled listing",
     description: listing.description || "",
