@@ -6,6 +6,7 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { BriefCard } from "@/components/discovery/BriefCard";
 import { BriefApplySheet } from "@/components/discovery/BriefApplySheet";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ListPageLoader } from "@/components/common/ListPageLoader";
 import { FilterSortSheet, type FilterSortState } from "@/components/common/FilterSortSheet";
 import { ActiveFilters, type ActiveFilterChip } from "@/components/common/ActiveFilters";
 import { Brief } from "@/types/marketplace";
@@ -303,9 +304,7 @@ export default function Briefs() {
               }}
             />
           ) : isLoading ? (
-            <Text type="caption1" color="tertiary">
-              Loading…
-            </Text>
+            <ListPageLoader label="Loading briefs…" />
           ) : visibleBriefs.length > 0 ? (
             <>
               {visibleBriefs.map((brief) => (
@@ -313,7 +312,7 @@ export default function Briefs() {
               ))}
               <div ref={sentinelRef} className="h-10 flex items-center justify-center">
                 {briefsQuery.isFetchingNextPage ? (
-                  <Text type="caption1" color="tertiary">Loading more…</Text>
+                  <ListPageLoader inline label="Loading more…" />
                 ) : briefsQuery.hasNextPage ? (
                   <Text type="caption2" color="tertiary">Scroll to load more</Text>
                 ) : (

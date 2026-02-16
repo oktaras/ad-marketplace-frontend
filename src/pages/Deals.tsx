@@ -13,6 +13,7 @@ import { DealCard } from "@/components/deals/DealCard";
 import { DealDetailSheet } from "@/components/deals/DealDetailSheet";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ListPageLoader } from "@/components/common/ListPageLoader";
 import {
   acceptDealTerms,
   approveDealCreative,
@@ -552,9 +553,7 @@ export default function Deals() {
               }}
             />
           ) : dealsQuery.isLoading ? (
-            <Text type="caption1" color="tertiary">
-              Loading…
-            </Text>
+            <ListPageLoader label="Loading deals…" />
           ) : dealsWithRangeFilter.length === 0 ? (
             <EmptyState
               emoji={selectedFilter === "all" && !hasActiveFilters ? "🤝" : STATUS_FILTERS[selectedFilter].icon}
@@ -584,7 +583,7 @@ export default function Deals() {
               ))}
               <div ref={sentinelRef} className="h-10 flex items-center justify-center">
                 {dealsQuery.isFetchingNextPage ? (
-                  <Text type="caption1" color="tertiary">Loading more…</Text>
+                  <ListPageLoader inline label="Loading more…" />
                 ) : dealsQuery.hasNextPage ? (
                   <Text type="caption2" color="tertiary">Scroll to load more</Text>
                 ) : (

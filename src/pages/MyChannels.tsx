@@ -6,6 +6,7 @@ import { Plus, SlidersHorizontal } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageContainer } from "@/components/common/PageContainer";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ListPageLoader } from "@/components/common/ListPageLoader";
 import { StatusTabs } from "@/components/common/StatusTabs";
 import { MyChannelCard } from "@/components/my-stuff/MyChannelCard";
 import { ListingCard } from "@/components/my-stuff/ListingCard";
@@ -396,9 +397,7 @@ export default function MyChannels() {
                     }}
                   />
                 ) : channelsLoading ? (
-                  <Text type="caption1" color="tertiary">
-                    Loading…
-                  </Text>
+                  <ListPageLoader label="Loading channels…" />
                 ) : channels.length > 0 ? (
                   <>
                     {channels.map((channel) => (
@@ -406,7 +405,7 @@ export default function MyChannels() {
                     ))}
                     <div ref={channelsSentinelRef} className="h-10 flex items-center justify-center">
                       {channelsQuery.isFetchingNextPage ? (
-                        <Text type="caption1" color="tertiary">Loading more…</Text>
+                        <ListPageLoader inline label="Loading more…" />
                       ) : channelsQuery.hasNextPage ? (
                         <Text type="caption2" color="tertiary">Scroll to load more</Text>
                       ) : (
@@ -478,9 +477,7 @@ export default function MyChannels() {
                     }}
                   />
                 ) : listingsLoading ? (
-                  <Text type="caption1" color="tertiary">
-                    Loading…
-                  </Text>
+                  <ListPageLoader label="Loading listings…" />
                 ) : listings.length > 0 ? (
                   <>
                     {listings.map((listing) => (
@@ -488,7 +485,7 @@ export default function MyChannels() {
                     ))}
                     <div ref={listingsSentinelRef} className="h-10 flex items-center justify-center">
                       {listingsQuery.isFetchingNextPage ? (
-                        <Text type="caption1" color="tertiary">Loading more…</Text>
+                        <ListPageLoader inline label="Loading more…" />
                       ) : listingsQuery.hasNextPage ? (
                         <Text type="caption2" color="tertiary">Scroll to load more</Text>
                       ) : (

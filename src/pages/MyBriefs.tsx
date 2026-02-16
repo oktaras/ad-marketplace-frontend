@@ -6,6 +6,7 @@ import { Plus, SlidersHorizontal } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageContainer } from "@/components/common/PageContainer";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ListPageLoader } from "@/components/common/ListPageLoader";
 import { StatusTabs } from "@/components/common/StatusTabs";
 import { Button } from "@/components/ui/button";
 import { MyBriefCard } from "@/components/my-stuff/MyBriefCard";
@@ -593,9 +594,7 @@ export default function MyBriefs() {
                 }}
               />
             ) : isLoading ? (
-              <Text type="caption1" color="tertiary">
-                Loading…
-              </Text>
+              <ListPageLoader label="Loading briefs…" />
             ) : briefs.length > 0 ? (
               <>
                 {briefs.map((brief) => (
@@ -603,7 +602,7 @@ export default function MyBriefs() {
                 ))}
                 <div ref={sentinelRef} className="h-10 flex items-center justify-center">
                   {briefsQuery.isFetchingNextPage ? (
-                    <Text type="caption1" color="tertiary">Loading more…</Text>
+                    <ListPageLoader inline label="Loading more…" />
                   ) : briefsQuery.hasNextPage ? (
                     <Text type="caption2" color="tertiary">Scroll to load more</Text>
                   ) : (

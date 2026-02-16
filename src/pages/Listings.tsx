@@ -8,6 +8,7 @@ import { PageContainer } from "@/components/common/PageContainer";
 import { FilterSortSheet, type FilterSortState } from "@/components/common/FilterSortSheet";
 import { ActiveFilters, type ActiveFilterChip } from "@/components/common/ActiveFilters";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ListPageLoader } from "@/components/common/ListPageLoader";
 import { ListingCard } from "@/components/discovery/ListingCard";
 import { ListingDetailSheet } from "@/components/discovery/ListingDetailSheet";
 import type { DiscoveryListing } from "@/shared/api/discovery";
@@ -337,7 +338,7 @@ export default function Listings() {
               }}
             />
           ) : isLoading ? (
-            <Text type="caption1" color="tertiary">Loading…</Text>
+            <ListPageLoader label="Loading listings…" />
           ) : listings.length > 0 ? (
             <>
               {listings.map((listing) => (
@@ -345,7 +346,7 @@ export default function Listings() {
               ))}
               <div ref={sentinelRef} className="h-10 flex items-center justify-center">
                 {listingsQuery.isFetchingNextPage ? (
-                  <Text type="caption1" color="tertiary">Loading more…</Text>
+                  <ListPageLoader inline label="Loading more…" />
                 ) : listingsQuery.hasNextPage ? (
                   <Text type="caption2" color="tertiary">Scroll to load more</Text>
                 ) : (
